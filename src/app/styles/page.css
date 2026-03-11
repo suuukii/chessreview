@@ -1,0 +1,6 @@
+@import './constants.css';
+
+.App {
+    display: grid;
+    place-content: center;
+}

@@ -1,0 +1,22 @@
+@import './constants.css';
+
+.board {
+    display: flex;
+    flex-wrap: wrap;
+    grid-template-columns: repeat(8, var(--tile-size));
+    grid-template-rows: repeat(8, var(--tile-size));
+    width: var(--board-size);
+    height: var(--board-size);
+}
+
+.board .white-tiles {
+    background-color: var(--white-tile-color);
+    width: var(--tile-size);
+    height: var(--tile-size);
+}
+
+.board .black-tiles{
+    background-color: var(--black-tile-color);
+    width: var(--tile-size);
+    height: var(--tile-size);
+}
