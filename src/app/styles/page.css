@@ -1,5 +1,9 @@
 @import './constants.css';
 
+body {
+    background-color: var(--bg-color);
+}
+
 .App {
     display: grid;
     place-content: center;

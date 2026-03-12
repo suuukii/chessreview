@@ -1,21 +1,21 @@
 @import './constants.css';
 
-.board {
-    display: flex;
-    flex-wrap: wrap;
-    grid-template-columns: repeat(8, var(--tile-size));
-    grid-template-rows: repeat(8, var(--tile-size));
-    width: var(--board-size);
-    height: var(--board-size);
+.tile {
+    display: grid;
+    place-content: center;
 }
 
-.board .white-tiles {
+.tile img {
+    width: var(--piece-size)
+}
+
+.white-tile {
     background-color: var(--white-tile-color);
     width: var(--tile-size);
     height: var(--tile-size);
 }
 
-.board .black-tiles{
+.black-tile {
     background-color: var(--black-tile-color);
     background-image: url('/imgs/board/clean-gray-paper.png');
     width: var(--tile-size);

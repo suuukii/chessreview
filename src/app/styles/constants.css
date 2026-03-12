@@ -1,8 +1,9 @@
 :root {
     --board-size : 800px;
     --tile-size : 100px;
+    --piece-size: 90px;
     --white-tile-color : #ccdadf;
-    --black-tile-color : #7fa0b4;
+    --black-tile-color : #7396ac;
     --bg-color : #302e2b;
 }
 

@@ -1,12 +1,11 @@
 import { Metadata } from "next";
 
+
 export const metadata : Metadata = {
   title : 'ChesReview',
-
   icons : {
     icon : '/imgs/icon.png'
   },
-
   alternates : {
     languages : {
       'en-US' : 'en-US'
