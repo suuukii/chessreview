@@ -2,7 +2,7 @@
 
 import "../styles/board.css";
 import Tile from "./Tile";
-import {useRef} from "react";
+import {useRef,useState} from "react";
 
 interface Piece {
   image: string;
@@ -14,8 +14,12 @@ export default function Board() {
   const horizontalAxis: string[] = ["a", "b", "c", "d", "e", "f", "g", "h"];
   const verticalAxis: string[] = ["1", "2", "3", "4", "5", "6", "7", "8"];
 
+  const initialBoardState: Piece[] = [];
   const board = [];
-  const pieces: Piece[] = [];
+  const [activePiece, setActivePiece] = useState<HTMLElement | null>(null);
+  const [pieces,setPieces] = useState<Piece[]>(initialBoardState);
+  const [gridX,setGridX] = useState(0);
+  const [gridY,setGridY] = useState(0);
   const chessBoardRef = useRef<HTMLDivElement> (null);
 
   const pathPieces: Record<string, string> = {
@@ -33,11 +37,14 @@ export default function Board() {
     wk: "/imgs/pieces/wk.png",
   };
 
-  let activePiece: HTMLElement | null = null;
 
   function grabPiece(e: React.MouseEvent): void{
     const element = e.target as HTMLElement
-    if(element.classList.contains("chess-piece")){
+    const chessBoard = chessBoardRef.current;
+    if(element.classList.contains("chess-piece") && chessBoard){
+      setGridX(Math.floor((e.clientX - chessBoard.offsetLeft) / 100));
+      setGridY(Math.abs(Math.ceil((e.clientY - chessBoard.offsetTop- 800) / 100)));
+
       const x = e.clientX  -50;
       const y = e.clientY  -50;
 
@@ -46,7 +53,7 @@ export default function Board() {
       element.style.left = String(x)+"px";
       element.style.top = String(y)+"px";
 
-      activePiece = element;
+      setActivePiece(element);
     }
   }
 
@@ -84,12 +91,27 @@ export default function Board() {
   }
 
   function dropPiece(e: React.MouseEvent): void{
-    activePiece = null;
+    const chessBoard = chessBoardRef.current;
+    if (activePiece && chessBoard){
+      const x = Math.floor((e.clientX - chessBoard.offsetLeft) / 100);
+      const y = Math.abs(Math.ceil((e.clientY - chessBoard.offsetTop- 800) / 100));
+      console.log(x, y)
+      setPieces(value =>{
+        const pieces = value.map(p => {
+          if (p.horizontalAxis === gridX && p.verticalAxis === gridY){
+            p.horizontalAxis = x;
+            p.verticalAxis = y;
+          }
+          return p;
+        })
+        return pieces;
+      })
+      setActivePiece(null);
+    }
   }
 
-
   function pieceInserction(piece: string, h: number, v: number): void {
-    pieces.push({
+    initialBoardState.push({
       image: pathPieces[piece],
       horizontalAxis: h,
       verticalAxis: v,

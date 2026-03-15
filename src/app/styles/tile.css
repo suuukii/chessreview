@@ -11,13 +11,14 @@
 
 .white-tile {
     background-color: var(--white-tile-color);
+    background-image: url('/imgs/board/texture.png');
     width: var(--tile-size);
     height: var(--tile-size);
 }
 
 .black-tile {
     background-color: var(--black-tile-color);
-    background-image: url('/imgs/board/clean-gray-paper.png');
+    background-image: url('/imgs/board/texture.png');
     width: var(--tile-size);
     height: var(--tile-size);
 }

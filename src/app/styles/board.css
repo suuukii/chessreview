@@ -8,16 +8,3 @@
     width: var(--board-size);
     height: var(--board-size);
 }
-
-.board .white-tiles {
-    background-color: var(--white-tile-color);
-    width: var(--tile-size);
-    height: var(--tile-size);
-}
-
-.board .black-tiles{
-    background-color: var(--black-tile-color);
-    background-image: url('/imgs/board/clean-gray-paper.png');
-    width: var(--tile-size);
-    height: var(--tile-size);
-}
