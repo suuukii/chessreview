@@ -1,5 +1,8 @@
+'use client';
+
 import "../styles/board.css";
 import Tile from "./Tile";
+import {useRef} from "react";
 
 interface Piece {
   image: string;
@@ -13,21 +16,77 @@ export default function Board() {
 
   const board = [];
   const pieces: Piece[] = [];
+  const chessBoardRef = useRef<HTMLDivElement> (null);
 
   const pathPieces: Record<string, string> = {
-    blackPawn: "/imgs/pieces/pawn_b.png",
-    whitePawn: "/imgs/pieces/pawn_w.png",
-    blackRook: "/imgs/pieces/rook_b.png",
-    whiteRook: "/imgs/pieces/rook_w.png",
-    blackBishop: "/imgs/pieces/bishop_b.png",
-    whiteBishop: "/imgs/pieces/bishop_w.png",
-    blackKnight: "/imgs/pieces/knight_b.png",
-    whiteKnight: "/imgs/pieces/knight_w.png",
-    blackQueen: "/imgs/pieces/queen_b.png",
-    whiteQueen: "/imgs/pieces/queen_w.png",
-    blackKing: "/imgs/pieces/king_b.png",
-    whiteKing: "/imgs/pieces/king_w.png",
+    bp: "/imgs/pieces/bp.png",
+    wp: "/imgs/pieces/wp.png",
+    br: "/imgs/pieces/br.png",
+    wr: "/imgs/pieces/wr.png",
+    bb: "/imgs/pieces/bb.png",
+    wb: "/imgs/pieces/wb.png",
+    bn: "/imgs/pieces/bn.png",
+    wn: "/imgs/pieces/wn.png",
+    bq: "/imgs/pieces/bq.png",
+    wq: "/imgs/pieces/wq.png",
+    bk: "/imgs/pieces/bk.png",
+    wk: "/imgs/pieces/wk.png",
   };
+
+  let activePiece: HTMLElement | null = null;
+
+  function grabPiece(e: React.MouseEvent): void{
+    const element = e.target as HTMLElement
+    if(element.classList.contains("chess-piece")){
+      const x = e.clientX  -50;
+      const y = e.clientY  -50;
+
+
+      element.style.position = "absolute";
+      element.style.left = String(x)+"px";
+      element.style.top = String(y)+"px";
+
+      activePiece = element;
+    }
+  }
+
+  function movePiece(e: React.MouseEvent): void{
+    const chessBoard = chessBoardRef.current;
+    if(activePiece && chessBoard){
+      const minX = chessBoard.offsetLeft - 50;
+      const minY = chessBoard.offsetTop - 50;
+      const maxX = chessBoard.offsetLeft + chessBoard.clientWidth - 50;
+      const maxY = chessBoard.offsetTop + chessBoard.clientHeight - 50;
+
+      const x = e.clientX - 50;
+      const y = e.clientY - 50;
+
+
+      activePiece.style.position = "absolute";
+
+      //horizontal
+      if(x < minX){
+        activePiece.style.left = `${minX}px`;
+      } else if (x > maxX) {
+        activePiece.style.left = `${maxX}px`;
+      } else{
+        activePiece.style.left = `${x}px`;
+      }
+
+      if(y < minY){
+        activePiece.style.top = `${minY - 50}px`;
+      } else if (y > maxY) {
+        activePiece.style.top = `${maxY + 50}px`;
+      } else{
+        activePiece.style.top = `${y}px`;
+      }
+    }
+  }
+
+  function dropPiece(e: React.MouseEvent): void{
+    activePiece = null;
+  }
+
 
   function pieceInserction(piece: string, h: number, v: number): void {
     pieces.push({
@@ -40,44 +99,44 @@ export default function Board() {
   function boardInitialize(): void {
     //Pawns
     for (let i = 7; i >= 0; i--) {
-      pieceInserction("blackPawn", i, 6);
+      pieceInserction("bp", i, 6);
     }
 
     for (let i = 7; i >= 0; i--) {
-      pieceInserction("whitePawn", i, 1);
+      pieceInserction("wp", i, 1);
     }
 
     //Rooks
-    pieceInserction("whiteRook", 0, 0);
-    pieceInserction("whiteRook", 7, 0);
-    pieceInserction("blackRook", 0, 7);
-    pieceInserction("blackRook", 7, 7);
+    pieceInserction('wr', 0, 0);
+    pieceInserction("wr", 7, 0);
+    pieceInserction("br", 0, 7);
+    pieceInserction("br", 7, 7);
 
     //Knights
-    pieceInserction("whiteKnight", 1, 0);
-    pieceInserction("whiteKnight", 6, 0);
-    pieceInserction("blackKnight", 1, 7);
-    pieceInserction("blackKnight", 6, 7);
+    pieceInserction("wn", 1, 0);
+    pieceInserction("wn", 6, 0);
+    pieceInserction("bn", 1, 7);
+    pieceInserction("bn", 6, 7);
 
     //Bishops
-    pieceInserction("whiteBishop", 2, 0);
-    pieceInserction("whiteBishop", 5, 0);
-    pieceInserction("blackBishop", 2, 7);
-    pieceInserction("blackBishop", 5, 7);
+    pieceInserction("wb", 2, 0);
+    pieceInserction("wb", 5, 0);
+    pieceInserction("bb", 2, 7);
+    pieceInserction("bb", 5, 7);
 
     //Kings
-    pieceInserction("whiteKing", 3, 0);
-    pieceInserction("blackKing", 3, 7);
+    pieceInserction("wk", 4, 0);
+    pieceInserction("bk", 4, 7);
 
     //Queens
-    pieceInserction("whiteQueen", 4, 0);
-    pieceInserction("blackQueen", 4, 7);
+    pieceInserction("wq", 3, 0);
+    pieceInserction("bq", 3, 7);
   }
 
   boardInitialize();
 
   for (let i = verticalAxis.length - 1; i >= 0; i--) {
-    for (let j = horizontalAxis.length - 1; j >= 0; j--) {
+    for (let j = 0; j < horizontalAxis.length; j++) {
       const number = j + i + 2;
 
       let image = undefined;
@@ -97,5 +156,12 @@ export default function Board() {
       );
     }
   }
-  return <div className="board">{board}</div>;
+  return <div 
+  onMouseDown={e => grabPiece(e)}
+  onMouseMove={e => movePiece(e)}
+  onMouseUp={e => dropPiece(e)}
+  className="board"
+  ref={chessBoardRef}>
+      {board}
+      </div>;
 }

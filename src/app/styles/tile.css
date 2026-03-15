@@ -21,3 +21,20 @@
     width: var(--tile-size);
     height: var(--tile-size);
 }
+
+.tile .chess-piece{
+    width: var(--tile-size);
+    height: var(--tile-size);
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: var(--piece-size);
+
+}
+
+.tile .chess-piece:hover{
+    cursor: grab;
+}
+
+.tile .chess-piece:active{
+    cursor: grabbing;
+}
