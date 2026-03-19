@@ -3,11 +3,28 @@
 import "../styles/board.css";
 import Tile from "./Tile";
 import {useRef,useState} from "react";
+import Rules from "../services/Rules";
 
-interface Piece {
+export interface Piece {
   image: string;
   horizontalAxis: number;
   verticalAxis: number;
+  type: PieceType;
+  team : TeamType
+}
+
+export enum PieceType{
+  PAWN,
+  BISHOP,
+  KNIGHT,
+  ROOK,
+  KING,
+  QUEEN
+}
+
+export enum TeamType{
+  OUR,
+  OPPONENT
 }
 
 export default function Board() {
@@ -21,21 +38,7 @@ export default function Board() {
   const [gridX,setGridX] = useState(0);
   const [gridY,setGridY] = useState(0);
   const chessBoardRef = useRef<HTMLDivElement> (null);
-
-  const pathPieces: Record<string, string> = {
-    bp: "/imgs/pieces/bp.png",
-    wp: "/imgs/pieces/wp.png",
-    br: "/imgs/pieces/br.png",
-    wr: "/imgs/pieces/wr.png",
-    bb: "/imgs/pieces/bb.png",
-    wb: "/imgs/pieces/wb.png",
-    bn: "/imgs/pieces/bn.png",
-    wn: "/imgs/pieces/wn.png",
-    bq: "/imgs/pieces/bq.png",
-    wq: "/imgs/pieces/wq.png",
-    bk: "/imgs/pieces/bk.png",
-    wk: "/imgs/pieces/wk.png",
-  };
+  const rules = new Rules();
 
 
   function grabPiece(e: React.MouseEvent): void{
@@ -92,15 +95,26 @@ export default function Board() {
 
   function dropPiece(e: React.MouseEvent): void{
     const chessBoard = chessBoardRef.current;
+    
+
     if (activePiece && chessBoard){
       const x = Math.floor((e.clientX - chessBoard.offsetLeft) / 100);
       const y = Math.abs(Math.ceil((e.clientY - chessBoard.offsetTop- 800) / 100));
       console.log(x, y)
+
+
       setPieces(value =>{
         const pieces = value.map(p => {
           if (p.horizontalAxis === gridX && p.verticalAxis === gridY){
+            const validMove = rules.isValidMove(gridX,gridY, x, y, p.type,p.team,value);
+            if (validMove){
             p.horizontalAxis = x;
             p.verticalAxis = y;
+            } else{
+              activePiece.style.position = "relative";
+              activePiece.style.removeProperty("top");
+              activePiece.style.removeProperty("left");
+            }
           }
           return p;
         })
@@ -110,52 +124,40 @@ export default function Board() {
     }
   }
 
-  function pieceInserction(piece: string, h: number, v: number): void {
-    initialBoardState.push({
-      image: pathPieces[piece],
-      horizontalAxis: h,
-      verticalAxis: v,
-    });
+  for (let p:number = 0; p < 2; p++){
+    const teamType = (p === 0)? TeamType.OPPONENT : TeamType.OUR;
+    const type = (teamType === TeamType.OPPONENT) ? "b" : "w";
+    const verticalAxis = (teamType === TeamType.OPPONENT)? 7 : 0;
+
+    //ROOK's
+    initialBoardState.push({image: `/imgs/pieces/${type}r.png`,horizontalAxis:0, verticalAxis, type: PieceType.ROOK, team: teamType})
+    initialBoardState.push({image: `/imgs/pieces/${type}r.png`,horizontalAxis:7, verticalAxis, type: PieceType.ROOK, team: teamType})
+
+    //KNIGHT's
+    initialBoardState.push({image: `/imgs/pieces/${type}n.png`,horizontalAxis:1, verticalAxis, type: PieceType.KNIGHT, team: teamType})
+    initialBoardState.push({image: `/imgs/pieces/${type}n.png`,horizontalAxis:6, verticalAxis, type: PieceType.KNIGHT, team: teamType})
+
+    //BISHOP's
+    initialBoardState.push({image: `/imgs/pieces/${type}b.png`,horizontalAxis:2, verticalAxis, type: PieceType.BISHOP, team: teamType})
+    initialBoardState.push({image: `/imgs/pieces/${type}b.png`,horizontalAxis:5, verticalAxis, type: PieceType.BISHOP, team: teamType})
+
+    //QUEEN
+    initialBoardState.push({image: `/imgs/pieces/${type}q.png`,horizontalAxis:3, verticalAxis, type: PieceType.QUEEN, team: teamType})
+
+    //KING
+    initialBoardState.push({image: `/imgs/pieces/${type}k.png`,horizontalAxis:4, verticalAxis, type: PieceType.KING, team: teamType})
   }
 
-  function boardInitialize(): void {
-    //Pawns
-    for (let i = 7; i >= 0; i--) {
-      pieceInserction("bp", i, 6);
-    }
-
-    for (let i = 7; i >= 0; i--) {
-      pieceInserction("wp", i, 1);
-    }
-
-    //Rooks
-    pieceInserction('wr', 0, 0);
-    pieceInserction("wr", 7, 0);
-    pieceInserction("br", 0, 7);
-    pieceInserction("br", 7, 7);
-
-    //Knights
-    pieceInserction("wn", 1, 0);
-    pieceInserction("wn", 6, 0);
-    pieceInserction("bn", 1, 7);
-    pieceInserction("bn", 6, 7);
-
-    //Bishops
-    pieceInserction("wb", 2, 0);
-    pieceInserction("wb", 5, 0);
-    pieceInserction("bb", 2, 7);
-    pieceInserction("bb", 5, 7);
-
-    //Kings
-    pieceInserction("wk", 4, 0);
-    pieceInserction("bk", 4, 7);
-
-    //Queens
-    pieceInserction("wq", 3, 0);
-    pieceInserction("bq", 3, 7);
+  //PAWN's
+  for(let i: number = 0; i < 8; i++){
+    initialBoardState.push({image: `/imgs/pieces/bp.png`,horizontalAxis:i, verticalAxis: 6, type: PieceType.PAWN, team: TeamType.OPPONENT})
   }
 
-  boardInitialize();
+  for(let i: number = 0; i < 8; i++){
+    initialBoardState.push({image: `/imgs/pieces/wp.png`,horizontalAxis:i, verticalAxis: 1, type: PieceType.PAWN, team: TeamType.OUR})
+  }
+
+
 
   for (let i = verticalAxis.length - 1; i >= 0; i--) {
     for (let j = 0; j < horizontalAxis.length; j++) {
