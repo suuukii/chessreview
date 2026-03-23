@@ -1,68 +1,43 @@
-'use client';
+"use client";
 
 import "../styles/board.css";
 import Tile from "./Tile";
-import {useRef,useState} from "react";
-import Rules from "../services/Rules";
+import { useRef, useState } from "react";
+import Rules from "../logic/Rules";
+import { VERTICAL_AXIS,HORIZONTAL_AXIS,Piece,PieceType,TeamType, initialBoardState, Position,GRID_SIZE, isSamePosition } from "../logic/Constants"
 
-export interface Piece {
-  image: string;
-  horizontalAxis: number;
-  verticalAxis: number;
-  type: PieceType;
-  team : TeamType
-}
-
-export enum PieceType{
-  PAWN,
-  BISHOP,
-  KNIGHT,
-  ROOK,
-  KING,
-  QUEEN
-}
-
-export enum TeamType{
-  OUR,
-  OPPONENT
-}
 
 export default function Board() {
-  const horizontalAxis: string[] = ["a", "b", "c", "d", "e", "f", "g", "h"];
-  const verticalAxis: string[] = ["1", "2", "3", "4", "5", "6", "7", "8"];
-
-  const initialBoardState: Piece[] = [];
   const board = [];
   const [activePiece, setActivePiece] = useState<HTMLElement | null>(null);
-  const [pieces,setPieces] = useState<Piece[]>(initialBoardState);
-  const [gridX,setGridX] = useState(0);
-  const [gridY,setGridY] = useState(0);
-  const chessBoardRef = useRef<HTMLDivElement> (null);
+  const [grabPosition , setGrabPosition] = useState<Position>({x:-1,y:-1});
+  const [pieces, setPieces] = useState<Piece[]>(initialBoardState);
+  const chessBoardRef = useRef<HTMLDivElement>(null);
   const rules = new Rules();
 
-
-  function grabPiece(e: React.MouseEvent): void{
-    const element = e.target as HTMLElement
+  function grabPiece(e: React.MouseEvent): void {
+    const element = e.target as HTMLElement;
     const chessBoard = chessBoardRef.current;
-    if(element.classList.contains("chess-piece") && chessBoard){
-      setGridX(Math.floor((e.clientX - chessBoard.offsetLeft) / 100));
-      setGridY(Math.abs(Math.ceil((e.clientY - chessBoard.offsetTop- 800) / 100)));
+    if (element.classList.contains("chess-piece") && chessBoard) {
+      const grabX = Math.floor((e.clientX - chessBoard.offsetLeft) / GRID_SIZE);
+      const grabY = Math.abs(Math.ceil((e.clientY - chessBoard.offsetTop - 800) / GRID_SIZE))
+      setGrabPosition({x: grabX,y: grabY})
 
-      const x = e.clientX  -50;
-      const y = e.clientY  -50;
 
+      const x = e.clientX - GRID_SIZE/2;
+      const y = e.clientY - GRID_SIZE/2;
 
       element.style.position = "absolute";
-      element.style.left = String(x)+"px";
-      element.style.top = String(y)+"px";
+      element.style.left = String(x) + "px";
+      element.style.top = String(y) + "px";
 
       setActivePiece(element);
     }
   }
 
-  function movePiece(e: React.MouseEvent): void{
+  function movePiece(e: React.MouseEvent): void {
     const chessBoard = chessBoardRef.current;
-    if(activePiece && chessBoard){
+    if (activePiece && chessBoard) {
       const minX = chessBoard.offsetLeft - 50;
       const minY = chessBoard.offsetTop - 50;
       const maxX = chessBoard.offsetLeft + chessBoard.clientWidth - 50;
@@ -71,121 +46,130 @@ export default function Board() {
       const x = e.clientX - 50;
       const y = e.clientY - 50;
 
-
       activePiece.style.position = "absolute";
 
       //horizontal
-      if(x < minX){
+      if (x < minX) {
         activePiece.style.left = `${minX}px`;
       } else if (x > maxX) {
         activePiece.style.left = `${maxX}px`;
-      } else{
+      } else {
         activePiece.style.left = `${x}px`;
       }
 
-      if(y < minY){
+      if (y < minY) {
         activePiece.style.top = `${minY - 50}px`;
       } else if (y > maxY) {
         activePiece.style.top = `${maxY + 50}px`;
-      } else{
+      } else {
         activePiece.style.top = `${y}px`;
       }
     }
   }
 
-  function dropPiece(e: React.MouseEvent): void{
+  function dropPiece(e: React.MouseEvent): void {
     const chessBoard = chessBoardRef.current;
-    
 
-    if (activePiece && chessBoard){
-      const x = Math.floor((e.clientX - chessBoard.offsetLeft) / 100);
-      const y = Math.abs(Math.ceil((e.clientY - chessBoard.offsetTop- 800) / 100));
-      console.log(x, y)
+    if (activePiece && chessBoard) {
+      const x = Math.floor((e.clientX - chessBoard.offsetLeft) / GRID_SIZE);
+      const y = Math.abs(Math.ceil((e.clientY - chessBoard.offsetTop - 800) / GRID_SIZE));
+      console.log(x, y);
 
+      const currentPiece = pieces.find(
+        (p) => isSamePosition(p.position, grabPosition)
+      );
+      console.log(currentPiece)
 
-      setPieces(value =>{
-        const pieces = value.map(p => {
-          if (p.horizontalAxis === gridX && p.verticalAxis === gridY){
-            const validMove = rules.isValidMove(gridX,gridY, x, y, p.type,p.team,value);
-            if (validMove){
-            p.horizontalAxis = x;
-            p.verticalAxis = y;
-            } else{
-              activePiece.style.position = "relative";
-              activePiece.style.removeProperty("top");
-              activePiece.style.removeProperty("left");
+      if (currentPiece) {
+        const isValidMove = rules.isValidMove(
+          grabPosition,
+          {x,y},
+          currentPiece.type,
+          currentPiece.team,
+          pieces,
+        );
+        const isEnPassantMove = rules.isEnPassantMove(
+          grabPosition,
+          {x,y},
+          pieces,
+          currentPiece.type,
+          currentPiece.team,
+        );
+
+        const pawnDirection = currentPiece.team === TeamType.OUR ? 1 : -1;
+
+        if(isEnPassantMove){
+          const updatedPieces = pieces.reduce((results,piece) => {
+            if(isSamePosition(piece.position, grabPosition)){
+              piece.enPassant = false;
+              piece.position.x = x;
+              piece.position.y = y;
+              results.push(piece);
+            }else if(!(isSamePosition(piece.position, {x, y: y-pawnDirection} ))){
+              if(piece.type === PieceType.PAWN){
+                piece.enPassant = false;
+              }
+              results.push(piece);
             }
-          }
-          return p;
-        })
-        return pieces;
-      })
+            return results
+          },[] as Piece[]);
+
+          setPieces(updatedPieces);
+        }else if(isValidMove) {
+          const updatedPieces = pieces.reduce((results, piece) => {
+            if (isSamePosition(piece.position,grabPosition)) {
+              
+              piece.enPassant = Math.abs(grabPosition.y - y) === 2 && piece.type === PieceType.PAWN
+
+              piece.position.x = x;
+              piece.position.y = y;
+              results.push(piece);
+            } else if (!(isSamePosition(piece.position,{x,y}))) {
+              if(piece.type === PieceType.PAWN){
+                piece.enPassant = false;
+              }
+              results.push(piece);
+            }
+            return results;
+          }, [] as Piece[]);
+
+          setPieces(updatedPieces);
+        } else {
+          //resets the piece position
+          activePiece.style.position = "relative";
+          activePiece.style.removeProperty("top");
+          activePiece.style.removeProperty("left");
+        }
+      }
       setActivePiece(null);
     }
   }
 
-  for (let p:number = 0; p < 2; p++){
-    const teamType = (p === 0)? TeamType.OPPONENT : TeamType.OUR;
-    const type = (teamType === TeamType.OPPONENT) ? "b" : "w";
-    const verticalAxis = (teamType === TeamType.OPPONENT)? 7 : 0;
-
-    //ROOK's
-    initialBoardState.push({image: `/imgs/pieces/${type}r.png`,horizontalAxis:0, verticalAxis, type: PieceType.ROOK, team: teamType})
-    initialBoardState.push({image: `/imgs/pieces/${type}r.png`,horizontalAxis:7, verticalAxis, type: PieceType.ROOK, team: teamType})
-
-    //KNIGHT's
-    initialBoardState.push({image: `/imgs/pieces/${type}n.png`,horizontalAxis:1, verticalAxis, type: PieceType.KNIGHT, team: teamType})
-    initialBoardState.push({image: `/imgs/pieces/${type}n.png`,horizontalAxis:6, verticalAxis, type: PieceType.KNIGHT, team: teamType})
-
-    //BISHOP's
-    initialBoardState.push({image: `/imgs/pieces/${type}b.png`,horizontalAxis:2, verticalAxis, type: PieceType.BISHOP, team: teamType})
-    initialBoardState.push({image: `/imgs/pieces/${type}b.png`,horizontalAxis:5, verticalAxis, type: PieceType.BISHOP, team: teamType})
-
-    //QUEEN
-    initialBoardState.push({image: `/imgs/pieces/${type}q.png`,horizontalAxis:3, verticalAxis, type: PieceType.QUEEN, team: teamType})
-
-    //KING
-    initialBoardState.push({image: `/imgs/pieces/${type}k.png`,horizontalAxis:4, verticalAxis, type: PieceType.KING, team: teamType})
-  }
-
-  //PAWN's
-  for(let i: number = 0; i < 8; i++){
-    initialBoardState.push({image: `/imgs/pieces/bp.png`,horizontalAxis:i, verticalAxis: 6, type: PieceType.PAWN, team: TeamType.OPPONENT})
-  }
-
-  for(let i: number = 0; i < 8; i++){
-    initialBoardState.push({image: `/imgs/pieces/wp.png`,horizontalAxis:i, verticalAxis: 1, type: PieceType.PAWN, team: TeamType.OUR})
-  }
-
-
-
-  for (let i = verticalAxis.length - 1; i >= 0; i--) {
-    for (let j = 0; j < horizontalAxis.length; j++) {
+  for (let i = VERTICAL_AXIS.length - 1; i >= 0; i--) {
+    for (let j = 0; j < HORIZONTAL_AXIS.length; j++) {
       const number = j + i + 2;
+      const piece = pieces.find(p => isSamePosition(p.position,{x:j,y:i}))
+      const image = piece ? piece.image : undefined;
 
-      let image = undefined;
-
-      pieces.forEach((p) => {
-        if (p.horizontalAxis === j && p.verticalAxis === i) {
-          image = p.image;
-        }
-      });
 
       board.push(
         <Tile
           number={number}
           image={image}
-          key={horizontalAxis[j] + verticalAxis[i]}
+          key={HORIZONTAL_AXIS[j] + VERTICAL_AXIS[i]}
         />,
       );
     }
   }
-  return <div 
-  onMouseDown={e => grabPiece(e)}
-  onMouseMove={e => movePiece(e)}
-  onMouseUp={e => dropPiece(e)}
-  className="board"
-  ref={chessBoardRef}>
+  return (
+    <div
+      onMouseDown={(e) => grabPiece(e)}
+      onMouseMove={(e) => movePiece(e)}
+      onMouseUp={(e) => dropPiece(e)}
+      className="board"
+      ref={chessBoardRef}
+    >
       {board}
-      </div>;
+    </div>
+  );
 }
