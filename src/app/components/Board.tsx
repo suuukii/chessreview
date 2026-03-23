@@ -4,7 +4,7 @@ import "../styles/board.css";
 import Tile from "./Tile";
 import { useRef, useState } from "react";
 import Rules from "../logic/Rules";
-import { VERTICAL_AXIS,HORIZONTAL_AXIS,Piece,PieceType,TeamType, initialBoardState, Position,GRID_SIZE, isSamePosition } from "../logic/Constants"
+import { VERTICAL_AXIS,HORIZONTAL_AXIS,Piece,PieceType,TeamType, initialBoardState, Position, GRID_SIZE, isSamePosition } from "../logic/Constants"
 
 
 export default function Board() {
@@ -118,7 +118,7 @@ export default function Board() {
         }else if(isValidMove) {
           const updatedPieces = pieces.reduce((results, piece) => {
             if (isSamePosition(piece.position,grabPosition)) {
-              
+
               piece.enPassant = Math.abs(grabPosition.y - y) === 2 && piece.type === PieceType.PAWN
 
               piece.position.x = x;
