@@ -54,19 +54,13 @@ export default class Rules {
     return !this.isTileOccupied(position, boardState) || this.isTileOccupiedByOpponent(position, boardState, team)
   }
 
-  isValidMove(
+  pawnMove(
     initialPosition : Position,
     desiredPosition : Position,
-    type: PieceType,
     team: TeamType,
     boardState: Piece[],
-  ): boolean {
-    // console.log("refree is checking the move...")
-    // console.log(`Previous Location(${px},${py}) | Atempt position(${x},${y}) | PieceType(${type}) | TeamType(${team})`)
-
-    //PAWN
-    if (type === PieceType.PAWN) {
-      const specialRow = team === TeamType.OUR ? 1 : 6;
+  ): boolean{
+    const specialRow = team === TeamType.OUR ? 1 : 6;
       const pawnDirection = team === TeamType.OUR ? 1 : -1;
       
       //MOVMENT LOGIC
@@ -93,79 +87,83 @@ export default class Rules {
           return true;
         }
       }
-    }
+      return false;
+  }
 
-    //BISHOP
-    if (type === PieceType.BISHOP){
-      //Movment and attack logic
+  bishopMove(
+    initialPosition : Position,
+    desiredPosition : Position,
+    team: TeamType,
+    boardState: Piece[],
+  ):boolean{
+    //Movment and attack logic
       for(let i: number = 1; i < 8; i++){
-
         //top right
-        if (desiredPosition.x > initialPosition.y && desiredPosition.y > initialPosition.y){
+        if (desiredPosition.x > initialPosition.x && desiredPosition.y > initialPosition.y){
           const passedPosition : Position = {x: initialPosition.x + i, y: initialPosition.y + i};
-          if(this.isTileOccupied(passedPosition,boardState)){
-            if(this.isTileOccupiedByOpponent(passedPosition,boardState,team) && isSamePosition(desiredPosition,passedPosition)){
+          if (isSamePosition(passedPosition, desiredPosition)){
+            if (this.isTileEmptyOrOccupiedByOpponent(passedPosition, boardState, team)){
               return true;
-            } else {
+            }
+          } else {
+            if(this.isTileOccupied(passedPosition,boardState)){
               break;
             }
-          }
-          if(isSamePosition(passedPosition, desiredPosition)){
-            return true;
           }
         }
 
         //top left
         if (desiredPosition.x < initialPosition.x && desiredPosition.y > initialPosition.y){
           const passedPosition : Position = {x: initialPosition.x - i, y: initialPosition.y + i};
-          if(this.isTileOccupied(passedPosition,boardState)){
-            if(this.isTileOccupiedByOpponent(passedPosition,boardState,team) && isSamePosition(desiredPosition,passedPosition)){
+          if (isSamePosition(passedPosition, desiredPosition)){
+            if (this.isTileEmptyOrOccupiedByOpponent(passedPosition, boardState, team)){
               return true;
-            } else {
+            }
+          } else {
+            if(this.isTileOccupied(passedPosition,boardState)){
               break;
             }
           }
-          if (isSamePosition(passedPosition, desiredPosition)){
-            return true;
-          }
         }
-  
 
         //botom right
         if(desiredPosition.x > initialPosition.x && desiredPosition.y < initialPosition.y){
           const passedPosition : Position = {x: initialPosition.x + i, y: initialPosition.y - i};
-          if(this.isTileOccupied(passedPosition,boardState)){
-            if(this.isTileOccupiedByOpponent(passedPosition,boardState,team) && isSamePosition(desiredPosition,passedPosition)){
+          if (isSamePosition(passedPosition, desiredPosition)){
+            if (this.isTileEmptyOrOccupiedByOpponent(passedPosition, boardState, team)){
               return true;
-            } else {
+            }
+          } else {
+            if(this.isTileOccupied(passedPosition,boardState)){
               break;
             }
-          }
-          if (isSamePosition(passedPosition, desiredPosition)){
-            return true;
           }
         }
 
          //bottom left
         if(desiredPosition.x < initialPosition.x && desiredPosition.y < initialPosition.y){
           const passedPosition : Position = {x: initialPosition.x - i, y: initialPosition.y - i};
-          if(this.isTileOccupied(passedPosition,boardState)){
-            if(this.isTileOccupiedByOpponent(passedPosition,boardState,team) && isSamePosition(desiredPosition,passedPosition)){
+          if (isSamePosition(passedPosition, desiredPosition)){
+            if (this.isTileEmptyOrOccupiedByOpponent(passedPosition, boardState, team)){
               return true;
-            } else {
+            }
+          } else {
+            if(this.isTileOccupied(passedPosition,boardState)){
               break;
             }
           }
-          if (isSamePosition(passedPosition, desiredPosition)){
-            return true;
-          }
         }
       }
-    }
+      return false;
+  }
 
-    //KNIGHT
-    if(type === PieceType.KNIGHT){
-      //MOVMENT AND ATTACK LOGIC
+  knightMove(
+    initialPosition : Position,
+    desiredPosition : Position,
+    team: TeamType,
+    boardState: Piece[],
+  ):boolean{
+    //MOVMENT AND ATTACK LOGIC
       for (let i:number = -1; i < 2 ; i += 2){
         for (let j:number = -1; j < 2 ; j += 2){
           if(desiredPosition.y - initialPosition.y === 2*i){
@@ -185,8 +183,99 @@ export default class Rules {
           }
         }
       }
-    }
+      return false;
+  }
 
+  rookMove(
+    initialPosition : Position,
+    desiredPosition : Position,
+    team: TeamType,
+    boardState: Piece[],
+  ):boolean{
+    //Move vertical
+      if(initialPosition.x === desiredPosition.x){
+        for(let i = 1; i < 8; i++){
+          const multiplier = (desiredPosition.y < initialPosition.y)? -1 : 1;
+          const passedPosition: Position = {x:initialPosition.x, y: initialPosition.y + (i*multiplier)}
+          if(isSamePosition(passedPosition, desiredPosition)){
+            if(this.isTileEmptyOrOccupiedByOpponent(passedPosition,boardState,team)){
+              return true;
+            }
+          } else {
+            if(this.isTileOccupied(passedPosition,boardState)){
+              break;
+            }
+          }
+        }
+      }
+
+      //Move horizontal
+      if(initialPosition.y === desiredPosition.y){
+        for(let i = 1; i < 8; i++){
+          const multiplier = (desiredPosition.x < initialPosition.x)? -1 : 1;
+          const passedPosition: Position = {x:initialPosition.x + (i*multiplier), y: initialPosition.y}
+          if(isSamePosition(passedPosition, desiredPosition)){
+            if(this.isTileEmptyOrOccupiedByOpponent(passedPosition,boardState,team)){
+              return true;
+            }
+          } else {
+            if(this.isTileOccupied(passedPosition, boardState)){
+              break;
+            }
+          }
+        }
+      }
+      return false;
+  }
+    queenMove(
+    initialPosition : Position,
+    desiredPosition : Position,
+    team: TeamType,
+    boardState: Piece[],
+  ):boolean{
     return false;
+  }
+
+    kingMove(
+    initialPosition : Position,
+    desiredPosition : Position,
+    team: TeamType,
+    boardState: Piece[],
+  ):boolean{
+    return false;
+  }
+
+  
+
+  isValidMove(
+    initialPosition : Position,
+    desiredPosition : Position,
+    type: PieceType,
+    team: TeamType,
+    boardState: Piece[],
+  ): boolean {
+
+    let validMove = false;
+
+    switch(type){
+      case PieceType.PAWN:
+        validMove = this.pawnMove(initialPosition,desiredPosition,team,boardState);
+        break;
+      case PieceType.BISHOP:
+        validMove = this.bishopMove(initialPosition,desiredPosition,team,boardState);
+        break;
+      case PieceType.KNIGHT:
+        validMove = this.knightMove(initialPosition,desiredPosition,team,boardState);
+        break;
+      case PieceType.ROOK:
+        validMove = this.rookMove(initialPosition,desiredPosition,team,boardState);
+        break;
+      case PieceType.QUEEN:
+        validMove = this.queenMove(initialPosition,desiredPosition,team,boardState);
+        break;
+      case PieceType.KING:
+        validMove = this.kingMove(initialPosition,desiredPosition,team,boardState);
+    }
+    return validMove;
   }
 }
