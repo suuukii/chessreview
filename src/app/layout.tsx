@@ -1,18 +1,16 @@
 import { Metadata } from "next";
 
-
-export const metadata : Metadata = {
-  title : 'ChesReview',
-  icons : {
-    icon : '/imgs/icon.png'
+export const metadata: Metadata = {
+  title: "ChesReview",
+  icons: {
+    icon: "/imgs/icon.png",
   },
-  alternates : {
-    languages : {
-      'en-US' : 'en-US'
-    }
-  }
-}
-
+  alternates: {
+    languages: {
+      "en-US": "en-US",
+    },
+  },
+};
 
 export default function RootLayout({
   children,
@@ -21,9 +19,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

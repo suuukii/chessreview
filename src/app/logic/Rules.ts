@@ -1,5 +1,4 @@
 import { PieceType, TeamType, Piece, Position, isSamePosition } from "./Constants";
-
 export default class Rules {
   isEnPassantMove(
     initialPosition : Position,
@@ -233,6 +232,22 @@ export default class Rules {
     team: TeamType,
     boardState: Piece[],
   ):boolean{
+    const multiplierY  = (desiredPosition.y < initialPosition.y)?  -1 : (desiredPosition.y > initialPosition.y)? 1 : 0;
+    const multiplierX = (desiredPosition.x < initialPosition.x)? -1 : (desiredPosition.x > initialPosition.x)? 1 : 0;
+
+    for(let i: number = 1; i < 8; i++){
+      const passedPosition: Position = {x: initialPosition.x + (i * multiplierX), y: initialPosition.y + (i * multiplierY)}
+      
+      if(isSamePosition(passedPosition, desiredPosition)){
+        if(this.isTileEmptyOrOccupiedByOpponent(passedPosition, boardState, team)){
+          return true;
+        }
+      } else {
+        if(this.isTileOccupied(passedPosition, boardState)){
+          break;
+        }
+      }  
+    }
     return false;
   }
 
@@ -242,6 +257,22 @@ export default class Rules {
     team: TeamType,
     boardState: Piece[],
   ):boolean{
+    const multiplierY  = (desiredPosition.y < initialPosition.y)?  -1 : (desiredPosition.y > initialPosition.y)? 1 : 0;
+    const multiplierX = (desiredPosition.x < initialPosition.x)? -1 : (desiredPosition.x > initialPosition.x)? 1 : 0;
+
+    for(let i: number = 1; i < 2; i++){
+      const passedPosition: Position = {x: initialPosition.x + (i * multiplierX), y: initialPosition.y + (i * multiplierY)}
+      
+      if(isSamePosition(passedPosition, desiredPosition)){
+        if(this.isTileEmptyOrOccupiedByOpponent(passedPosition, boardState, team)){
+          return true;
+        }
+      } else {
+        if(this.isTileOccupied(passedPosition, boardState)){
+          break;
+        }
+      }  
+    }
     return false;
   }
 
