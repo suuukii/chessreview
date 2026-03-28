@@ -3,7 +3,7 @@
 import "../styles/board.css";
 import Tile from "./Tile";
 import { useRef, useState } from "react";
-import Rules from "../logic/Rules";
+import Rules from "../logic/Refree";
 import { VERTICAL_AXIS,HORIZONTAL_AXIS,Piece,PieceType,TeamType, initialBoardState, Position, GRID_SIZE, isSamePosition } from "../logic/Constants"
 
 
@@ -73,12 +73,10 @@ export default function Board() {
     if (activePiece && chessBoard) {
       const x = Math.floor((e.clientX - chessBoard.offsetLeft) / GRID_SIZE);
       const y = Math.abs(Math.ceil((e.clientY - chessBoard.offsetTop - 800) / GRID_SIZE));
-      console.log(x, y);
 
       const currentPiece = pieces.find(
         (p) => isSamePosition(p.position, grabPosition)
       );
-      console.log(currentPiece)
 
       if (currentPiece) {
         const isValidMove = rules.isValidMove(
