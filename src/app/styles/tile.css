@@ -23,19 +23,34 @@
     height: var(--tile-size);
 }
 
-.tile .chess-piece{
+.chess-piece {
     width: var(--tile-size);
     height: var(--tile-size);
     background-repeat: no-repeat;
     background-position: center;
     background-size: var(--piece-size);
-
+    transition: transform 0.1s ease-in-out;
+    will-change: transform;
+    z-index: 100;
 }
 
-.tile .chess-piece:hover{
+.chess-piece.dragging {
+    transition: none;
+}
+
+.tile .chess-piece:hover {
     cursor: grab;
 }
 
-.tile .chess-piece:active{
+.tile .chess-piece:active {
     cursor: grabbing;
 }
+
+.tile-hint::before {
+    content: "";
+    width: 30px;
+    height: 30px;
+    background-color: var(--hint-tile-color);
+    border-radius: 50%;
+}
+

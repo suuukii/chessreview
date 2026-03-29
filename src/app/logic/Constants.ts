@@ -7,6 +7,11 @@ export function isSamePosition(p1:Position, p2:Position) : boolean{
   return p1.x === p2.x && p1.y === p2.y;
 }
 
+export function playSound(sound: string): void {
+    const audio = new Audio(`/sounds/${sound}`);
+    audio.play();
+  }
+
 export interface Position{
   x:number;
   y:number;
@@ -32,6 +37,7 @@ export interface Piece {
   type: PieceType;
   team: TeamType;
   enPassant?: boolean;
+  possibleMoves?: Position[];
 }
 
 export const initialBoardState: Piece[] = [

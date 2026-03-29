@@ -1,22 +1,33 @@
-import '../styles/tile.css'
-
+import "../styles/tile.css"
 interface Props {
-    number : number
-    image : string | undefined
+  number: number;
+  image: string | undefined;
+  hint: boolean;
+  translateX?: number;
+  translateY?: number;
 }
 
-export default function Tile({number,image}: Props){
-    if (number % 2 === 0) {
-        return( 
-        <div className='tile black-tile'>
-            {image && <div style={{backgroundImage: `url(${image})`}} className='chess-piece'></div>}
-        </div>
-        )
-    } else {
-        return (
-        <div className='tile white-tile'>
-            {image && <div style={{backgroundImage: `url(${image})`}} className='chess-piece'></div>}
-        </div>
-        )
-    }
+export default function Tile({ number, image, hint, translateX = 0, translateY = 0 }: Props) {
+  const className: string = [
+    "tile",
+    number % 2 === 0 && "black-tile",
+    number % 2 !== 0 && "white-tile",
+    hint && "tile-hint",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <div className={className}>
+      {image && (
+        <div
+          style={{
+            backgroundImage: `url(${image})`,
+            transform: `translate(${translateX}px, ${translateY}px)`,
+          }}
+          className="chess-piece"
+        />
+      )}
+    </div>
+  );
 }

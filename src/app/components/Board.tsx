@@ -2,10 +2,10 @@
 
 import "../styles/board.css";
 import Tile from "./Tile";
-import Refree from "./Refree";
+import PawnPromotionBox from "./PawnPromotionBox";
 import { useRef, useState } from "react";
-import Image from "next/image";
-import Rules from "../logic/Refree";
+import Referee from "../logic/Referee";
+
 import {
   VERTICAL_AXIS,
   HORIZONTAL_AXIS,
@@ -16,6 +16,7 @@ import {
   Position,
   GRID_SIZE,
   isSamePosition,
+  playSound,
 } from "../logic/Constants";
 
 export default function Board() {
@@ -23,18 +24,30 @@ export default function Board() {
   const [activePiece, setActivePiece] = useState<HTMLElement | null>(null);
   const [grabPosition, setGrabPosition] = useState<Position>({ x: -1, y: -1 });
   const [pieces, setPieces] = useState<Piece[]>(initialBoardState);
+  const [selectedPiece, setSelectedPiece] = useState<Piece | null>(null);
   const [promotionPawn, setPromotionPawn] = useState<Piece | null>(null);
   const chessBoardRef = useRef<HTMLDivElement>(null);
-  const rules = new Rules();
-  const options = ["b", "r", "n", "q"];
+  const [animatingPosition, setAnimatingPosition] = useState<{
+    from: Position;
+    translateX: number;
+    translateY: number;
+  } | null>(null);
 
-  function playSound(sound: string): void {
-    const audio = new Audio(`/sounds/${sound}`);
-    audio.play();
+  const referee = new Referee();
+
+  function updateValidMove() {
+    setPieces((currentPieces) => {
+      return currentPieces.map((p) => {
+        p.possibleMoves = referee.getValidMove(p, currentPieces);
+        return p;
+      });
+    });
   }
 
   function grabPiece(e: React.MouseEvent): void {
     if (promotionPawn) return;
+
+    updateValidMove();
 
     const element = e.target as HTMLElement;
     const chessBoard = chessBoardRef.current;
@@ -43,7 +56,20 @@ export default function Board() {
       const grabY = Math.abs(
         Math.ceil((e.clientY - chessBoard.offsetTop - 800) / GRID_SIZE),
       );
+
       setGrabPosition({ x: grabX, y: grabY });
+
+      const clickedPiece = pieces.find((p) =>
+        isSamePosition(p.position, { x: grabX, y: grabY }),
+      );
+
+      if (selectedPiece && clickedPiece?.team === selectedPiece.team) {
+        setGrabPosition({ x: grabX, y: grabY });
+        setSelectedPiece(clickedPiece ?? null);
+        return;
+      }
+
+      setSelectedPiece(clickedPiece ?? null);
 
       const x = e.clientX - GRID_SIZE / 2;
       const y = e.clientY - GRID_SIZE / 2;
@@ -69,7 +95,6 @@ export default function Board() {
 
       activePiece.style.position = "absolute";
 
-      //horizontal
       if (x < minX) {
         activePiece.style.left = `${minX}px`;
       } else if (x > maxX) {
@@ -92,106 +117,140 @@ export default function Board() {
     if (promotionPawn) return;
 
     const chessBoard = chessBoardRef.current;
+    if (!chessBoard) return;
 
-    if (activePiece && chessBoard) {
-      const x = Math.floor((e.clientX - chessBoard.offsetLeft) / GRID_SIZE);
-      const y = Math.abs(
-        Math.ceil((e.clientY - chessBoard.offsetTop - 800) / GRID_SIZE),
-      );
+    const x = Math.floor((e.clientX - chessBoard.offsetLeft) / GRID_SIZE);
+    const y = Math.abs(
+      Math.ceil((e.clientY - chessBoard.offsetTop - 800) / GRID_SIZE),
+    );
+
+    if (!activePiece && selectedPiece) {
+      executeMove(selectedPiece, x, y);
+      return;
+    }
+
+    if (activePiece) {
+      if (isSamePosition(grabPosition, { x, y })) {
+        activePiece.style.position = "relative";
+        activePiece.style.removeProperty("top");
+        activePiece.style.removeProperty("left");
+        setActivePiece(null);
+        setSelectedPiece(
+          pieces.find((p) => isSamePosition(p.position, grabPosition)) ?? null,
+        );
+        return;
+      }
 
       const currentPiece = pieces.find((p) =>
         isSamePosition(p.position, grabPosition),
       );
 
       if (currentPiece) {
-        const isValidMove = rules.isValidMove(
-          grabPosition,
-          { x, y },
-          currentPiece.type,
-          currentPiece.team,
-          pieces,
-        );
-
-        const isEnPassantMove = rules.isEnPassantMove(
-          grabPosition,
-          { x, y },
-          pieces,
-          currentPiece.type,
-          currentPiece.team,
-        );
-
-        const pawnDirection = currentPiece.team === TeamType.OUR ? 1 : -1;
-
-        if (isEnPassantMove) {
-          const updatedPieces = pieces.reduce((results, piece) => {
-            if (isSamePosition(piece.position, grabPosition)) {
-              piece.enPassant = false;
-              piece.position.x = x;
-              piece.position.y = y;
-              results.push(piece);
-            } else if (
-              !isSamePosition(piece.position, { x, y: y - pawnDirection })
-            ) {
-              if (piece.type === PieceType.PAWN) {
-                piece.enPassant = false;
-              }
-              results.push(piece);
-            }
-            return results;
-          }, [] as Piece[]);
-
-          setPieces(updatedPieces);
-
-          playSound("capture.mp3");
-        } else if (isValidMove) {
-          const targetPiece = pieces.find((p) =>
-            isSamePosition(p.position, { x, y }),
-          );
-          const capture = targetPiece && targetPiece.team !== currentPiece.team;
-
-          const updatedPieces = pieces.reduce((results, piece) => {
-            if (isSamePosition(piece.position, grabPosition)) {
-              piece.enPassant =
-                Math.abs(grabPosition.y - y) === 2 &&
-                piece.type === PieceType.PAWN;
-
-              piece.position.x = x;
-              piece.position.y = y;
-
-              const promotionRow: number = piece.team === TeamType.OUR ? 7 : 0;
-
-              if (y === promotionRow && piece.type === PieceType.PAWN) {
-                setPromotionPawn(piece);
-              }
-
-              results.push(piece);
-            } else if (!isSamePosition(piece.position, { x, y })) {
-              if (piece.type === PieceType.PAWN) {
-                piece.enPassant = false;
-              }
-              results.push(piece);
-            }
-            return results;
-          }, [] as Piece[]);
-
-          setPieces(updatedPieces);
-
-          if (capture) {
-            playSound("capture.mp3");
-          } else if (currentPiece.team === TeamType.OUR) {
-            playSound("move-self.mp3");
-          } else if (currentPiece.team === TeamType.OPPONENT) {
-            playSound("move-opponent.mp3");
-          }
-        } else {
-          //resets the piece position
-          activePiece.style.position = "relative";
-          activePiece.style.removeProperty("top");
-          activePiece.style.removeProperty("left");
-        }
+        executeMove(currentPiece, x, y);
+      } else {
+        activePiece.style.position = "relative";
+        activePiece.style.removeProperty("top");
+        activePiece.style.removeProperty("left");
       }
       setActivePiece(null);
     }
+  }
+
+  function executeMove(piece: Piece, x: number, y: number): void {
+    const isEnPassantMove = referee.isEnPassantMove(
+      grabPosition,
+      { x, y },
+      pieces,
+      piece.type,
+      piece.team,
+    );
+    const isValidMove = referee.isValidMove(
+      grabPosition,
+      { x, y },
+      piece.type,
+      piece.team,
+      pieces,
+    );
+    const pawnDirection = piece.team === TeamType.OUR ? 1 : -1;
+    const isDragging = !!activePiece;
+
+    if (isEnPassantMove || isValidMove) {
+      if (!isDragging) {
+        const translateX = (x - grabPosition.x) * GRID_SIZE;
+        const translateY = (grabPosition.y - y) * GRID_SIZE;
+
+        setAnimatingPosition({
+          from: { ...grabPosition },
+          translateX,
+          translateY,
+        });
+      }
+
+      setTimeout(
+        () => {
+          setAnimatingPosition(null);
+
+          if (isEnPassantMove) {
+            const updatedPieces = pieces.reduce((results, piece) => {
+              if (isSamePosition(piece.position, grabPosition)) {
+                piece.enPassant = false;
+                piece.position.x = x;
+                piece.position.y = y;
+                results.push(piece);
+              } else if (
+                !isSamePosition(piece.position, { x, y: y - pawnDirection })
+              ) {
+                if (piece.type === PieceType.PAWN) piece.enPassant = false;
+                results.push(piece);
+              }
+              return results;
+            }, [] as Piece[]);
+            setPieces(updatedPieces);
+            playSound("capture.mp3");
+          } else if (isValidMove) {
+            const targetPiece = pieces.find((p) =>
+              isSamePosition(p.position, { x, y }),
+            );
+            const capture = targetPiece && targetPiece.team !== piece.team;
+
+            const updatedPieces = pieces.reduce((results, piece) => {
+              if (isSamePosition(piece.position, grabPosition)) {
+                piece.enPassant =
+                  Math.abs(grabPosition.y - y) === 2 &&
+                  piece.type === PieceType.PAWN;
+                piece.position.x = x;
+                piece.position.y = y;
+                const promotionRow: number =
+                  piece.team === TeamType.OUR ? 7 : 0;
+                if (y === promotionRow && piece.type === PieceType.PAWN)
+                  setPromotionPawn(piece);
+                results.push(piece);
+              } else if (!isSamePosition(piece.position, { x, y })) {
+                if (piece.type === PieceType.PAWN) piece.enPassant = false;
+                results.push(piece);
+              }
+              return results;
+            }, [] as Piece[]);
+
+            setPieces(updatedPieces);
+
+            if (capture) playSound("capture.mp3");
+            else if (piece.team === TeamType.OUR) playSound("move-self.mp3");
+            else if (piece.team === TeamType.OPPONENT)
+              playSound("move-opponent.mp3");
+          }
+        },
+        isDragging ? 0 : 100,
+      );
+    } else {
+      if (activePiece) {
+        activePiece.style.position = "relative";
+        activePiece.style.removeProperty("top");
+        activePiece.style.removeProperty("left");
+      }
+    }
+
+    setSelectedPiece(null);
   }
 
   const chessBoard = chessBoardRef.current;
@@ -199,7 +258,6 @@ export default function Board() {
   const promotionBoxLeft = promotionPawn
     ? (chessBoard?.offsetLeft ?? 0) + promotionPawn.position.x * GRID_SIZE
     : 0;
-
   const promotionBoxTop =
     promotionPawn?.team === TeamType.OUR
       ? (chessBoard?.offsetTop ?? 0)
@@ -239,43 +297,40 @@ export default function Board() {
         isSamePosition(p.position, { x: j, y: i }),
       );
       const image = piece ? piece.image : undefined;
+      const currentPiece = pieces.find((p) =>
+        isSamePosition(p.position, grabPosition),
+      );
+      const hint = currentPiece?.possibleMoves
+        ? currentPiece.possibleMoves.some((p) =>
+            isSamePosition(p, { x: j, y: i }),
+          )
+        : false;
+
+      const isAnimating = animatingPosition
+        ? isSamePosition(animatingPosition.from, { x: j, y: i })
+        : false;
 
       board.push(
         <Tile
           number={number}
           image={image}
           key={HORIZONTAL_AXIS[j] + VERTICAL_AXIS[i]}
+          hint={hint}
+          translateX={isAnimating ? animatingPosition!.translateX : 0}
+          translateY={isAnimating ? animatingPosition!.translateY : 0}
         />,
       );
     }
   }
+
   return (
     <>
-      <div
-        className="pawn-promotion-box"
-        style={{
-          display: promotionPawn ? "flex" : "none",
-          left: `${promotionBoxLeft}px`,
-          top: `${promotionBoxTop}px`,
-        }}
-      >
-        {options.map((option) => {
-          const team = promotionPawn?.team === TeamType.OUR ? "w" : "b";
-
-          return (
-            <Image
-              key={option}
-              src={`/imgs/pieces/${team}${option}.png`}
-              alt=""
-              width={GRID_SIZE}
-              height={GRID_SIZE}
-              onClick={() => promotePawn(option)}
-              style={{ cursor: "pointer" }}
-            />
-          );
-        })}
-      </div>
-      <Refree />
+      <PawnPromotionBox
+        promotionPawn={promotionPawn}
+        promotionBoxLeft={promotionBoxLeft}
+        promotionBoxTop={promotionBoxTop}
+        onPromote={promotePawn}
+      />
       <div
         onMouseDown={(e) => grabPiece(e)}
         onMouseMove={(e) => movePiece(e)}

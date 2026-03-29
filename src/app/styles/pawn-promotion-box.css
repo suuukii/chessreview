@@ -1,0 +1,10 @@
+.pawn-promotion-box {
+    left: calc(.25*var(--tile-size));
+    background-color: white;
+    border-radius: 3px;
+    display: flex;
+    flex-direction: column-reverse;
+    position: fixed;
+    box-shadow: 3px 3px 10px rgba(0, 0, 0, .65);
+    z-index: 200;
+}
