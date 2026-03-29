@@ -1,0 +1,2 @@
+checkmate = move-check + game-end
+stalemate = move-self or opponent + game-end
