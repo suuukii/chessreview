@@ -1,6 +1,6 @@
 import "../styles/pawn-promotion-box.css"
 import Image from "next/image";
-import { Piece, TeamType, GRID_SIZE } from "../logic/Constants";
+import { Piece, TeamType, GRID_SIZE } from "../services/Constants";
 
 interface PawnPromotionBoxProps {
   promotionPawn: Piece | null;

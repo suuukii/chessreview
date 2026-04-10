@@ -36,7 +36,9 @@
 
 .chess-piece.dragging {
     transition: none;
-}
+    position: relative;
+    z-index: 10;
+}x
 
 .tile .chess-piece:hover {
     cursor: grab;
@@ -54,3 +56,10 @@
     border-radius: 50%;
 }
 
+.tile-hovered {
+    box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.6);
+}
+
+.tile-selected {
+    background-color:rgba(94, 215, 241, 0.9)
+}

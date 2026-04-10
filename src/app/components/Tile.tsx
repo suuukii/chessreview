@@ -5,14 +5,18 @@ interface Props {
   hint: boolean;
   translateX?: number;
   translateY?: number;
+  hovered?: boolean;
+  selected?: boolean;
 }
 
-export default function Tile({ number, image, hint, translateX = 0, translateY = 0 }: Props) {
+export default function Tile({ number, image, hint, translateX = 0, translateY = 0, hovered, selected }: Props) {
   const className: string = [
     "tile",
     number % 2 === 0 && "black-tile",
     number % 2 !== 0 && "white-tile",
     hint && "tile-hint",
+    hovered && "tile-hovered",
+    selected && "tile-selected"
   ]
     .filter(Boolean)
     .join(" ");

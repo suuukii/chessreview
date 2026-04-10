@@ -4,7 +4,7 @@ import "../styles/board.css";
 import Tile from "./Tile";
 import PawnPromotionBox from "./PawnPromotionBox";
 import { useRef, useState } from "react";
-import Referee from "../logic/Referee";
+import Referee from "../services/Referee";
 
 import {
   VERTICAL_AXIS,
@@ -17,7 +17,7 @@ import {
   GRID_SIZE,
   isSamePosition,
   playSound,
-} from "../logic/Constants";
+} from "../services/Constants";
 
 export default function Board() {
   const board = [];
@@ -27,6 +27,9 @@ export default function Board() {
   const [selectedPiece, setSelectedPiece] = useState<Piece | null>(null);
   const [promotionPawn, setPromotionPawn] = useState<Piece | null>(null);
   const chessBoardRef = useRef<HTMLDivElement>(null);
+  const [hoverPosition, setHoverPosition] = useState<Position | null>(null);
+  const selectedPieceRef = useRef<Piece | null>(null);
+  const grabPositionRef = useRef<Position>({ x: -1, y: -1 });
   const [animatingPosition, setAnimatingPosition] = useState<{
     from: Position;
     translateX: number;
@@ -44,43 +47,50 @@ export default function Board() {
     });
   }
 
-  function grabPiece(e: React.MouseEvent): void {
-    if (promotionPawn) return;
-
-    updateValidMove();
-
-    const element = e.target as HTMLElement;
-    const chessBoard = chessBoardRef.current;
-    if (element.classList.contains("chess-piece") && chessBoard) {
-      const grabX = Math.floor((e.clientX - chessBoard.offsetLeft) / GRID_SIZE);
-      const grabY = Math.abs(
-        Math.ceil((e.clientY - chessBoard.offsetTop - 800) / GRID_SIZE),
-      );
-
-      setGrabPosition({ x: grabX, y: grabY });
-
-      const clickedPiece = pieces.find((p) =>
-        isSamePosition(p.position, { x: grabX, y: grabY }),
-      );
-
-      if (selectedPiece && clickedPiece?.team === selectedPiece.team) {
-        setGrabPosition({ x: grabX, y: grabY });
-        setSelectedPiece(clickedPiece ?? null);
-        return;
-      }
-
-      setSelectedPiece(clickedPiece ?? null);
-
-      const x = e.clientX - GRID_SIZE / 2;
-      const y = e.clientY - GRID_SIZE / 2;
-
-      element.style.position = "absolute";
-      element.style.left = String(x) + "px";
-      element.style.top = String(y) + "px";
-
-      setActivePiece(element);
-    }
+  function updateSelectedPiece(piece: Piece | null | undefined) {
+    selectedPieceRef.current = piece ?? null;
+    setSelectedPiece(piece ?? null);
   }
+
+  function grabPiece(e: React.MouseEvent): void {
+  if (promotionPawn) return;
+
+  updateValidMove();
+
+  const element = e.target as HTMLElement;
+  const chessBoard = chessBoardRef.current;
+  if (element.classList.contains("chess-piece") && chessBoard) {
+    const grabX = Math.floor((e.clientX - chessBoard.offsetLeft) / GRID_SIZE);
+    const grabY = Math.abs(
+      Math.ceil((e.clientY - chessBoard.offsetTop - 800) / GRID_SIZE),
+    );
+
+    grabPositionRef.current = { x: grabX, y: grabY };
+    setGrabPosition({ x: grabX, y: grabY });
+
+    const clickedPiece = pieces.find((p) =>
+      isSamePosition(p.position, { x: grabX, y: grabY }),
+    );
+
+    if (selectedPiece && clickedPiece?.team === selectedPiece.team) {
+      grabPositionRef.current = { x: grabX, y: grabY };
+      setGrabPosition({ x: grabX, y: grabY });
+      updateSelectedPiece(clickedPiece ?? null);
+      return;
+    }
+
+    updateSelectedPiece(clickedPiece ?? null);
+
+    const x = e.clientX - GRID_SIZE / 2;
+    const y = e.clientY - GRID_SIZE / 2;
+
+    element.style.position = "absolute";
+    element.style.left = String(x) + "px";
+    element.style.top = String(y) + "px";
+
+    setActivePiece(element);
+  }
+}
 
   function movePiece(e: React.MouseEvent): void {
     const chessBoard = chessBoardRef.current;
@@ -110,6 +120,14 @@ export default function Board() {
       } else {
         activePiece.style.top = `${y}px`;
       }
+
+      const hoverX = Math.floor(
+        (e.clientX - chessBoard.offsetLeft) / GRID_SIZE,
+      );
+      const hoverY = Math.abs(
+        Math.ceil((e.clientY - chessBoard.offsetTop - 800) / GRID_SIZE),
+      );
+      setHoverPosition({ x: hoverX, y: hoverY });
     }
   }
 
@@ -125,9 +143,17 @@ export default function Board() {
     );
 
     if (!activePiece && selectedPiece) {
-      executeMove(selectedPiece, x, y);
-      return;
-    }
+  const clickedPiece = pieces.find((p) =>
+    isSamePosition(p.position, { x, y }),
+  );
+
+  if (clickedPiece && clickedPiece.team === selectedPiece.team) {
+    return;
+  }
+
+  executeMove(selectedPiece, x, y);
+  return;
+}
 
     if (activePiece) {
       if (isSamePosition(grabPosition, { x, y })) {
@@ -135,7 +161,7 @@ export default function Board() {
         activePiece.style.removeProperty("top");
         activePiece.style.removeProperty("left");
         setActivePiece(null);
-        setSelectedPiece(
+        updateSelectedPiece(
           pieces.find((p) => isSamePosition(p.position, grabPosition)) ?? null,
         );
         return;
@@ -153,6 +179,7 @@ export default function Board() {
         activePiece.style.removeProperty("left");
       }
       setActivePiece(null);
+      setHoverPosition(null);
     }
   }
 
@@ -250,7 +277,7 @@ export default function Board() {
       }
     }
 
-    setSelectedPiece(null);
+    updateSelectedPiece(null);
   }
 
   const chessBoard = chessBoardRef.current;
@@ -310,6 +337,15 @@ export default function Board() {
         ? isSamePosition(animatingPosition.from, { x: j, y: i })
         : false;
 
+      const isHovered =
+        hoverPosition && activePiece
+          ? isSamePosition(hoverPosition, { x: j, y: i })
+          : false;
+
+      const isSelected = selectedPieceRef.current
+        ? isSamePosition({ x: j, y: i }, grabPositionRef.current)
+        : false;
+
       board.push(
         <Tile
           number={number}
@@ -318,6 +354,8 @@ export default function Board() {
           hint={hint}
           translateX={isAnimating ? animatingPosition!.translateX : 0}
           translateY={isAnimating ? animatingPosition!.translateY : 0}
+          hovered={isHovered}
+          selected={isSelected}
         />,
       );
     }
