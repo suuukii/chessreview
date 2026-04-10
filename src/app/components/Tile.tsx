@@ -7,16 +7,21 @@ interface Props {
   translateY?: number;
   hovered?: boolean;
   selected?: boolean;
+  lastMoveFrom?: boolean;
+  lastMoveTo?: boolean;
 }
 
-export default function Tile({ number, image, hint, translateX = 0, translateY = 0, hovered, selected }: Props) {
+export default function Tile({ number, image, hint, translateX = 0, translateY = 0, hovered, selected, lastMoveFrom, lastMoveTo }: Props) {
   const className: string = [
     "tile",
     number % 2 === 0 && "black-tile",
     number % 2 !== 0 && "white-tile",
     hint && "tile-hint",
+    image && "chess-piece-tile",
     hovered && "tile-hovered",
-    selected && "tile-selected"
+    selected && "tile-selected",
+    lastMoveFrom && "tile-last-move-from",
+    lastMoveTo && "tile-last-move-to",
   ]
     .filter(Boolean)
     .join(" ");

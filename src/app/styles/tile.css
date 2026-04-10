@@ -48,11 +48,20 @@
     cursor: grabbing;
 }
 
-.tile-hint::before {
+.tile-hint:not(.chess-piece-tile)::before {
     content: "";
     width: 30px;
     height: 30px;
     background-color: var(--hint-tile-color);
+    border-radius: 50%;
+}
+
+.tile-hint.chess-piece-tile::before {
+    position:absolute;
+    content: "";
+    width: 85.6px;
+    height: 85.6px;
+    border: 7.2px solid var(--hint-tile-color);
     border-radius: 50%;
 }
 
@@ -63,3 +72,12 @@
 .tile-selected {
     background-color:rgba(94, 215, 241, 0.9)
 }
+
+.tile-last-move-from{
+    background-color:rgba(114, 189, 212, 0.9)
+}
+
+.tile-last-move-to{
+    background-color:rgba(114, 189, 212) ;
+}
+

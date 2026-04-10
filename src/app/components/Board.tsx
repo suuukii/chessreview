@@ -4,280 +4,178 @@ import "../styles/board.css";
 import Tile from "./Tile";
 import PawnPromotionBox from "./PawnPromotionBox";
 import { useRef, useState } from "react";
-import Referee from "../services/Referee";
 
 import {
   VERTICAL_AXIS,
   HORIZONTAL_AXIS,
   Piece,
-  PieceType,
-  TeamType,
-  initialBoardState,
   Position,
   GRID_SIZE,
   isSamePosition,
-  playSound,
+  TeamType,
 } from "../services/Constants";
 
-export default function Board() {
-  const board = [];
-  const [activePiece, setActivePiece] = useState<HTMLElement | null>(null);
-  const [grabPosition, setGrabPosition] = useState<Position>({ x: -1, y: -1 });
-  const [pieces, setPieces] = useState<Piece[]>(initialBoardState);
-  const [selectedPiece, setSelectedPiece] = useState<Piece | null>(null);
-  const [promotionPawn, setPromotionPawn] = useState<Piece | null>(null);
-  const chessBoardRef = useRef<HTMLDivElement>(null);
-  const [hoverPosition, setHoverPosition] = useState<Position | null>(null);
-  const selectedPieceRef = useRef<Piece | null>(null);
-  const grabPositionRef = useRef<Position>({ x: -1, y: -1 });
+interface Props {
+  pieces: Piece[];
+  updatePossibleMoves: () => void;
+  playMove: (
+    piece: Piece,
+    destination: Position,
+    onAnimationStart: (from: Position, translateX: number, translateY: number) => void,
+    onPromotionNeeded: (piece: Piece) => void,
+    isDragging: boolean,
+  ) => boolean;
+  promotePawn: (promotionPawn: Piece, pieceType: string) => void;
+}
+
+export default function Board({ pieces, updatePossibleMoves, playMove, promotePawn }: Props) {
+  const [activePiece, setActivePiece]       = useState<HTMLElement | null>(null);
+  const [grabPosition, setGrabPosition]     = useState<Position>({ x: -1, y: -1 });
+  const [selectedPiece, setSelectedPiece]   = useState<Piece | null>(null);
+  const [promotionPawn, setPromotionPawn]   = useState<Piece | null>(null);
+  const [hoverPosition, setHoverPosition]   = useState<Position | null>(null);
+  const [lastMove, setLastMove]             = useState<{ from: Position; to: Position } | null>(null);
   const [animatingPosition, setAnimatingPosition] = useState<{
     from: Position;
     translateX: number;
     translateY: number;
   } | null>(null);
 
-  const referee = new Referee();
-
-  function updateValidMove() {
-    setPieces((currentPieces) => {
-      return currentPieces.map((p) => {
-        p.possibleMoves = referee.getValidMove(p, currentPieces);
-        return p;
-      });
-    });
-  }
+  const chessBoardRef    = useRef<HTMLDivElement>(null);
+  const selectedPieceRef = useRef<Piece | null>(null);
+  const grabPositionRef  = useRef<Position>({ x: -1, y: -1 });
 
   function updateSelectedPiece(piece: Piece | null | undefined) {
     selectedPieceRef.current = piece ?? null;
     setSelectedPiece(piece ?? null);
   }
 
+  function resetActivePiece() {
+    if (activePiece) {
+      activePiece.style.position = "relative";
+      activePiece.style.removeProperty("top");
+      activePiece.style.removeProperty("left");
+    }
+    setActivePiece(null);
+    setHoverPosition(null);
+  }
+
+  function getBoardCoords(clientX: number, clientY: number): Position {
+    const chessBoard = chessBoardRef.current!;
+    return {
+      x: Math.floor((clientX - chessBoard.offsetLeft) / GRID_SIZE),
+      y: Math.abs(Math.ceil((clientY - chessBoard.offsetTop - 800) / GRID_SIZE)),
+    };
+  }
+
+  function handleAnimationStart(from: Position, translateX: number, translateY: number) {
+    setAnimatingPosition({ from, translateX, translateY });
+    setTimeout(() => setAnimatingPosition(null), 100);
+  }
+
+  function handlePromotionNeeded(piece: Piece) {
+    setPromotionPawn(piece);
+  }
+
   function grabPiece(e: React.MouseEvent): void {
-  if (promotionPawn) return;
+    if (promotionPawn) return;
 
-  updateValidMove();
+    updatePossibleMoves();
 
-  const element = e.target as HTMLElement;
-  const chessBoard = chessBoardRef.current;
-  if (element.classList.contains("chess-piece") && chessBoard) {
-    const grabX = Math.floor((e.clientX - chessBoard.offsetLeft) / GRID_SIZE);
-    const grabY = Math.abs(
-      Math.ceil((e.clientY - chessBoard.offsetTop - 800) / GRID_SIZE),
-    );
+    const element = e.target as HTMLElement;
+    const chessBoard = chessBoardRef.current;
+    if (!element.classList.contains("chess-piece") || !chessBoard) return;
 
-    grabPositionRef.current = { x: grabX, y: grabY };
-    setGrabPosition({ x: grabX, y: grabY });
+    const pos = getBoardCoords(e.clientX, e.clientY);
+    grabPositionRef.current = pos;
+    setGrabPosition(pos);
 
-    const clickedPiece = pieces.find((p) =>
-      isSamePosition(p.position, { x: grabX, y: grabY }),
-    );
+    const clickedPiece = pieces.find((p) => isSamePosition(p.position, pos));
 
+    // Clicking a friendly piece while another is selected → switch selection
     if (selectedPiece && clickedPiece?.team === selectedPiece.team) {
-      grabPositionRef.current = { x: grabX, y: grabY };
-      setGrabPosition({ x: grabX, y: grabY });
-      updateSelectedPiece(clickedPiece ?? null);
+      updateSelectedPiece(clickedPiece);
       return;
     }
 
-    updateSelectedPiece(clickedPiece ?? null);
-
-    const x = e.clientX - GRID_SIZE / 2;
-    const y = e.clientY - GRID_SIZE / 2;
+    updateSelectedPiece(clickedPiece);
 
     element.style.position = "absolute";
-    element.style.left = String(x) + "px";
-    element.style.top = String(y) + "px";
-
+    element.style.left = `${e.clientX - GRID_SIZE / 2}px`;
+    element.style.top  = `${e.clientY - GRID_SIZE / 2}px`;
     setActivePiece(element);
   }
-}
 
   function movePiece(e: React.MouseEvent): void {
     const chessBoard = chessBoardRef.current;
-    if (activePiece && chessBoard) {
-      const minX = chessBoard.offsetLeft - 50;
-      const minY = chessBoard.offsetTop - 50;
-      const maxX = chessBoard.offsetLeft + chessBoard.clientWidth - 50;
-      const maxY = chessBoard.offsetTop + chessBoard.clientHeight - 50;
+    if (!activePiece || !chessBoard) return;
 
-      const x = e.clientX - 50;
-      const y = e.clientY - 50;
+    const minX = chessBoard.offsetLeft - 50;
+    const minY = chessBoard.offsetTop  - 50;
+    const maxX = chessBoard.offsetLeft + chessBoard.clientWidth  - 50;
+    const maxY = chessBoard.offsetTop  + chessBoard.clientHeight - 50;
 
-      activePiece.style.position = "absolute";
+    const x = Math.min(Math.max(e.clientX - 50, minX), maxX);
+    const y = Math.min(Math.max(e.clientY - 50, minY), maxY);
 
-      if (x < minX) {
-        activePiece.style.left = `${minX}px`;
-      } else if (x > maxX) {
-        activePiece.style.left = `${maxX}px`;
-      } else {
-        activePiece.style.left = `${x}px`;
-      }
+    activePiece.style.position = "absolute";
+    activePiece.style.left = `${x}px`;
+    activePiece.style.top  = `${y}px`;
 
-      if (y < minY) {
-        activePiece.style.top = `${minY - 50}px`;
-      } else if (y > maxY) {
-        activePiece.style.top = `${maxY + 50}px`;
-      } else {
-        activePiece.style.top = `${y}px`;
-      }
-
-      const hoverX = Math.floor(
-        (e.clientX - chessBoard.offsetLeft) / GRID_SIZE,
-      );
-      const hoverY = Math.abs(
-        Math.ceil((e.clientY - chessBoard.offsetTop - 800) / GRID_SIZE),
-      );
-      setHoverPosition({ x: hoverX, y: hoverY });
-    }
+    setHoverPosition(getBoardCoords(e.clientX, e.clientY));
   }
 
   function dropPiece(e: React.MouseEvent): void {
     if (promotionPawn) return;
+    if (!chessBoardRef.current) return;
 
-    const chessBoard = chessBoardRef.current;
-    if (!chessBoard) return;
-
-    const x = Math.floor((e.clientX - chessBoard.offsetLeft) / GRID_SIZE);
-    const y = Math.abs(
-      Math.ceil((e.clientY - chessBoard.offsetTop - 800) / GRID_SIZE),
-    );
+    const dest = getBoardCoords(e.clientX, e.clientY);
 
     if (!activePiece && selectedPiece) {
-  const clickedPiece = pieces.find((p) =>
-    isSamePosition(p.position, { x, y }),
-  );
-
-  if (clickedPiece && clickedPiece.team === selectedPiece.team) {
-    return;
-  }
-
-  executeMove(selectedPiece, x, y);
-  return;
-}
-
-    if (activePiece) {
-      if (isSamePosition(grabPosition, { x, y })) {
-        activePiece.style.position = "relative";
-        activePiece.style.removeProperty("top");
-        activePiece.style.removeProperty("left");
-        setActivePiece(null);
-        updateSelectedPiece(
-          pieces.find((p) => isSamePosition(p.position, grabPosition)) ?? null,
-        );
-        return;
-      }
-
-      const currentPiece = pieces.find((p) =>
-        isSamePosition(p.position, grabPosition),
-      );
-
-      if (currentPiece) {
-        executeMove(currentPiece, x, y);
-      } else {
-        activePiece.style.position = "relative";
-        activePiece.style.removeProperty("top");
-        activePiece.style.removeProperty("left");
-      }
-      setActivePiece(null);
-      setHoverPosition(null);
+      const clickedPiece = pieces.find((p) => isSamePosition(p.position, dest));
+      if (clickedPiece?.team === selectedPiece.team) return; // clicked own piece — ignore
+      executeMove(selectedPiece, dest);
+      return;
     }
+
+    if (!activePiece) return;
+
+    if (isSamePosition(grabPosition, dest)) {
+      resetActivePiece();
+      updateSelectedPiece(pieces.find((p) => isSamePosition(p.position, grabPosition)));
+      return;
+    }
+
+    const currentPiece = pieces.find((p) => isSamePosition(p.position, grabPosition));
+    if (currentPiece) {
+      executeMove(currentPiece, dest);
+    } else {
+      resetActivePiece();
+    }
+
+    setActivePiece(null);
+    setHoverPosition(null);
   }
 
-  function executeMove(piece: Piece, x: number, y: number): void {
-    const isEnPassantMove = referee.isEnPassantMove(
-      grabPosition,
-      { x, y },
-      pieces,
-      piece.type,
-      piece.team,
-    );
-    const isValidMove = referee.isValidMove(
-      grabPosition,
-      { x, y },
-      piece.type,
-      piece.team,
-      pieces,
-    );
-    const pawnDirection = piece.team === TeamType.OUR ? 1 : -1;
+  function executeMove(piece: Piece, dest: Position): void {
     const isDragging = !!activePiece;
 
-    if (isEnPassantMove || isValidMove) {
-      if (!isDragging) {
-        const translateX = (x - grabPosition.x) * GRID_SIZE;
-        const translateY = (grabPosition.y - y) * GRID_SIZE;
+    const moved = playMove(
+      piece,
+      dest,
+      handleAnimationStart,
+      handlePromotionNeeded,
+      isDragging,
+    );
 
-        setAnimatingPosition({
-          from: { ...grabPosition },
-          translateX,
-          translateY,
-        });
-      }
-
-      setTimeout(
-        () => {
-          setAnimatingPosition(null);
-
-          if (isEnPassantMove) {
-            const updatedPieces = pieces.reduce((results, piece) => {
-              if (isSamePosition(piece.position, grabPosition)) {
-                piece.enPassant = false;
-                piece.position.x = x;
-                piece.position.y = y;
-                results.push(piece);
-              } else if (
-                !isSamePosition(piece.position, { x, y: y - pawnDirection })
-              ) {
-                if (piece.type === PieceType.PAWN) piece.enPassant = false;
-                results.push(piece);
-              }
-              return results;
-            }, [] as Piece[]);
-            setPieces(updatedPieces);
-            playSound("capture.mp3");
-          } else if (isValidMove) {
-            const targetPiece = pieces.find((p) =>
-              isSamePosition(p.position, { x, y }),
-            );
-            const capture = targetPiece && targetPiece.team !== piece.team;
-
-            const updatedPieces = pieces.reduce((results, piece) => {
-              if (isSamePosition(piece.position, grabPosition)) {
-                piece.enPassant =
-                  Math.abs(grabPosition.y - y) === 2 &&
-                  piece.type === PieceType.PAWN;
-                piece.position.x = x;
-                piece.position.y = y;
-                const promotionRow: number =
-                  piece.team === TeamType.OUR ? 7 : 0;
-                if (y === promotionRow && piece.type === PieceType.PAWN)
-                  setPromotionPawn(piece);
-                results.push(piece);
-              } else if (!isSamePosition(piece.position, { x, y })) {
-                if (piece.type === PieceType.PAWN) piece.enPassant = false;
-                results.push(piece);
-              }
-              return results;
-            }, [] as Piece[]);
-
-            setPieces(updatedPieces);
-
-            if (capture) playSound("capture.mp3");
-            else if (piece.team === TeamType.OUR) playSound("move-self.mp3");
-            else if (piece.team === TeamType.OPPONENT)
-              playSound("move-opponent.mp3");
-          }
-        },
-        isDragging ? 0 : 100,
-      );
-    } else {
-      if (activePiece) {
-        activePiece.style.position = "relative";
-        activePiece.style.removeProperty("top");
-        activePiece.style.removeProperty("left");
-      }
+    if (moved) {
+      setLastMove({ from: { ...grabPositionRef.current }, to: dest });
+    } else if (activePiece) {
+      resetActivePiece();
     }
 
     updateSelectedPiece(null);
+    grabPositionRef.current = { x: -1, y: -1 };
   }
 
   const chessBoard = chessBoardRef.current;
@@ -285,77 +183,37 @@ export default function Board() {
   const promotionBoxLeft = promotionPawn
     ? (chessBoard?.offsetLeft ?? 0) + promotionPawn.position.x * GRID_SIZE
     : 0;
-  const promotionBoxTop =
-    promotionPawn?.team === TeamType.OUR
-      ? (chessBoard?.offsetTop ?? 0)
-      : (chessBoard?.offsetTop ?? 0) + 7 * GRID_SIZE;
+  const promotionBoxTop = promotionPawn?.team === TeamType.OUR
+    ? (chessBoard?.offsetTop ?? 0)
+    : (chessBoard?.offsetTop ?? 0) + 7 * GRID_SIZE;
 
-  function promotePawn(pieceType: string): void {
+  function handlePromote(pieceType: string): void {
     if (!promotionPawn) return;
-
-    const typeMap: Record<string, PieceType> = {
-      q: PieceType.QUEEN,
-      r: PieceType.ROOK,
-      b: PieceType.BISHOP,
-      n: PieceType.KNIGHT,
-    };
-
-    const updatedPieces = pieces.map((p) => {
-      if (isSamePosition(p.position, promotionPawn.position)) {
-        const team = promotionPawn.team === TeamType.OUR ? "w" : "b";
-        return {
-          ...p,
-          type: typeMap[pieceType],
-          image: `/imgs/pieces/${team}${pieceType}.png`,
-        };
-      }
-      return p;
-    });
-
-    playSound("promote.mp3");
-    setPieces(updatedPieces);
+    promotePawn(promotionPawn, pieceType);
     setPromotionPawn(null);
   }
 
+  const board = [];
+
   for (let i = VERTICAL_AXIS.length - 1; i >= 0; i--) {
     for (let j = 0; j < HORIZONTAL_AXIS.length; j++) {
-      const number = j + i + 2;
-      const piece = pieces.find((p) =>
-        isSamePosition(p.position, { x: j, y: i }),
-      );
-      const image = piece ? piece.image : undefined;
-      const currentPiece = pieces.find((p) =>
-        isSamePosition(p.position, grabPosition),
-      );
-      const hint = currentPiece?.possibleMoves
-        ? currentPiece.possibleMoves.some((p) =>
-            isSamePosition(p, { x: j, y: i }),
-          )
-        : false;
-
-      const isAnimating = animatingPosition
-        ? isSamePosition(animatingPosition.from, { x: j, y: i })
-        : false;
-
-      const isHovered =
-        hoverPosition && activePiece
-          ? isSamePosition(hoverPosition, { x: j, y: i })
-          : false;
-
-      const isSelected = selectedPieceRef.current
-        ? isSamePosition({ x: j, y: i }, grabPositionRef.current)
-        : false;
+      const piece       = pieces.find((p) => isSamePosition(p.position, { x: j, y: i }));
+      const grabPiece_  = pieces.find((p) => isSamePosition(p.position, grabPosition));
+      const hint        = grabPiece_?.possibleMoves?.some((p) => isSamePosition(p, { x: j, y: i })) ?? false;
+      const isAnimating = animatingPosition ? isSamePosition(animatingPosition.from, { x: j, y: i }) : false;
 
       board.push(
         <Tile
-          number={number}
-          image={image}
           key={HORIZONTAL_AXIS[j] + VERTICAL_AXIS[i]}
+          number={j + i + 2}
+          image={piece?.image}
           hint={hint}
           translateX={isAnimating ? animatingPosition!.translateX : 0}
           translateY={isAnimating ? animatingPosition!.translateY : 0}
-          hovered={isHovered}
-          selected={isSelected}
+          hovered={!!hoverPosition && !!activePiece && isSamePosition(hoverPosition, { x: j, y: i })}
+          selected={!!selectedPieceRef.current && isSamePosition({ x: j, y: i }, grabPositionRef.current)}
+          lastMoveFrom={!!lastMove && isSamePosition({ x: j, y: i }, lastMove.from)}
+          lastMoveTo={!!lastMove && isSamePosition({ x: j, y: i }, lastMove.to)}
         />,
       );
     }
@@ -367,14 +225,14 @@ export default function Board() {
         promotionPawn={promotionPawn}
         promotionBoxLeft={promotionBoxLeft}
         promotionBoxTop={promotionBoxTop}
-        onPromote={promotePawn}
+        onPromote={handlePromote}
       />
       <div
-        onMouseDown={(e) => grabPiece(e)}
-        onMouseMove={(e) => movePiece(e)}
-        onMouseUp={(e) => dropPiece(e)}
         className="board"
         ref={chessBoardRef}
+        onMouseDown={grabPiece}
+        onMouseMove={movePiece}
+        onMouseUp={dropPiece}
       >
         {board}
       </div>
