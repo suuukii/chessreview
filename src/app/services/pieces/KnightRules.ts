@@ -1,6 +1,7 @@
-import { Position, TeamType, Piece, PieceType } from "../Constants"
+import { Piece } from "@/app/models/Piece";
+import { Position } from "@/app/models/Position";
+import {TeamType } from "../Types"
 import { isTileEmptyOrOccupiedByOpponent } from "../Rules"
-import { kingMove } from "./King";
 
 export function  knightMove(
     initialPosition : Position,
@@ -35,8 +36,8 @@ export function  knightMove(
     const possibleMoves: Position[] = [];
     for (let i:number = -1; i < 2 ; i += 2){
         for (let j:number = -1; j < 2 ; j += 2){
-          const verticalMove: Position = {x:knight.position.x + j, y: knight.position.y + i * 2};
-          const horizontalMove: Position = {x: knight.position.x + i * 2, y:knight.position.y + j};
+          const verticalMove = new Position(knight.position.x + j, knight.position.y + i * 2);
+          const horizontalMove = new Position(knight.position.x + i * 2, knight.position.y + j);
 
           if(isTileEmptyOrOccupiedByOpponent(verticalMove,boardState,knight.team)){
             possibleMoves.push(verticalMove);

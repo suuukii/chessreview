@@ -1,5 +1,4 @@
 .pawn-promotion-box {
-    left: calc(.25*var(--tile-size));
     background-color: white;
     border-radius: 3px;
     display: flex;

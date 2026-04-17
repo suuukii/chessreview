@@ -3,16 +3,15 @@
 import "../styles/board.css";
 import Tile from "./Tile";
 import PawnPromotionBox from "./PawnPromotionBox";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 
+import { Piece } from "../models/Piece";
+import { Position } from "@/app/models/Position";
+import {TeamType } from "../services/Types"
 import {
   VERTICAL_AXIS,
   HORIZONTAL_AXIS,
-  Piece,
-  Position,
   GRID_SIZE,
-  isSamePosition,
-  TeamType,
 } from "../services/Constants";
 
 interface Props {
@@ -29,8 +28,8 @@ interface Props {
 }
 
 export default function Board({ pieces, updatePossibleMoves, playMove, promotePawn }: Props) {
-  const [activePiece, setActivePiece]       = useState<HTMLElement | null>(null);
-  const [grabPosition, setGrabPosition]     = useState<Position>({ x: -1, y: -1 });
+  const activePieceRef = useRef<HTMLElement | null>(null);
+  const [grabPosition, setGrabPosition]     = useState<Position>(new Position(-1, -1));
   const [selectedPiece, setSelectedPiece]   = useState<Piece | null>(null);
   const [promotionPawn, setPromotionPawn]   = useState<Piece | null>(null);
   const [hoverPosition, setHoverPosition]   = useState<Position | null>(null);
@@ -40,10 +39,20 @@ export default function Board({ pieces, updatePossibleMoves, playMove, promotePa
     translateX: number;
     translateY: number;
   } | null>(null);
+  const [boardOffset, setBoardOffset] = useState<{ left: number; top: number }>({ left: 0, top: 0 });
 
   const chessBoardRef    = useRef<HTMLDivElement>(null);
   const selectedPieceRef = useRef<Piece | null>(null);
-  const grabPositionRef  = useRef<Position>({ x: -1, y: -1 });
+  const grabPositionRef  = useRef<Position>(new Position(-1, -1));
+
+  useEffect(() => {
+    if (promotionPawn && chessBoardRef.current) {
+      setBoardOffset({
+        left: chessBoardRef.current.offsetLeft,
+        top: chessBoardRef.current.offsetTop,
+      });
+    }
+  }, [promotionPawn]);
 
   function updateSelectedPiece(piece: Piece | null | undefined) {
     selectedPieceRef.current = piece ?? null;
@@ -51,27 +60,29 @@ export default function Board({ pieces, updatePossibleMoves, playMove, promotePa
   }
 
   function resetActivePiece() {
+    const activePiece = activePieceRef.current;
     if (activePiece) {
       activePiece.style.position = "relative";
       activePiece.style.removeProperty("top");
       activePiece.style.removeProperty("left");
     }
-    setActivePiece(null);
+    activePieceRef.current = null;
     setHoverPosition(null);
   }
 
   function getBoardCoords(clientX: number, clientY: number): Position {
     const chessBoard = chessBoardRef.current!;
-    return {
-      x: Math.floor((clientX - chessBoard.offsetLeft) / GRID_SIZE),
-      y: Math.abs(Math.ceil((clientY - chessBoard.offsetTop - 800) / GRID_SIZE)),
-    };
+    return new Position(
+      Math.floor((clientX - chessBoard.offsetLeft) / GRID_SIZE),
+      Math.abs(Math.ceil((clientY - chessBoard.offsetTop - 800) / GRID_SIZE)),
+    );
   }
-
-  function handleAnimationStart(from: Position, translateX: number, translateY: number) {
-    setAnimatingPosition({ from, translateX, translateY });
-    setTimeout(() => setAnimatingPosition(null), 100);
-  }
+function handleAnimationStart(from: Position, translateX: number, translateY: number) {
+  setAnimatingPosition({ from, translateX, translateY });
+  setTimeout(() => {
+    setAnimatingPosition(null);
+  }, 200); 
+}
 
   function handlePromotionNeeded(piece: Piece) {
     setPromotionPawn(piece);
@@ -80,17 +91,18 @@ export default function Board({ pieces, updatePossibleMoves, playMove, promotePa
   function grabPiece(e: React.MouseEvent): void {
     if (promotionPawn) return;
 
+    e.preventDefault();
     updatePossibleMoves();
 
-    const element = e.target as HTMLElement;
+    const element = (e.target as HTMLElement).closest(".chess-piece") as HTMLElement | null;
     const chessBoard = chessBoardRef.current;
-    if (!element.classList.contains("chess-piece") || !chessBoard) return;
+    if (!element || !chessBoard) return;
 
     const pos = getBoardCoords(e.clientX, e.clientY);
     grabPositionRef.current = pos;
     setGrabPosition(pos);
 
-    const clickedPiece = pieces.find((p) => isSamePosition(p.position, pos));
+    const clickedPiece = pieces.find((p) => p.position.isSamePosition(pos));
 
     // Clicking a friendly piece while another is selected → switch selection
     if (selectedPiece && clickedPiece?.team === selectedPiece.team) {
@@ -103,10 +115,12 @@ export default function Board({ pieces, updatePossibleMoves, playMove, promotePa
     element.style.position = "absolute";
     element.style.left = `${e.clientX - GRID_SIZE / 2}px`;
     element.style.top  = `${e.clientY - GRID_SIZE / 2}px`;
-    setActivePiece(element);
+    activePieceRef.current = element;
   }
 
   function movePiece(e: React.MouseEvent): void {
+    e.preventDefault();
+    const activePiece = activePieceRef.current;
     const chessBoard = chessBoardRef.current;
     if (!activePiece || !chessBoard) return;
 
@@ -126,13 +140,15 @@ export default function Board({ pieces, updatePossibleMoves, playMove, promotePa
   }
 
   function dropPiece(e: React.MouseEvent): void {
+    e.preventDefault();
     if (promotionPawn) return;
+    const activePiece = activePieceRef.current;
     if (!chessBoardRef.current) return;
 
     const dest = getBoardCoords(e.clientX, e.clientY);
 
     if (!activePiece && selectedPiece) {
-      const clickedPiece = pieces.find((p) => isSamePosition(p.position, dest));
+      const clickedPiece = pieces.find((p) => p.position.isSamePosition(dest));
       if (clickedPiece?.team === selectedPiece.team) return; // clicked own piece — ignore
       executeMove(selectedPiece, dest);
       return;
@@ -140,25 +156,25 @@ export default function Board({ pieces, updatePossibleMoves, playMove, promotePa
 
     if (!activePiece) return;
 
-    if (isSamePosition(grabPosition, dest)) {
+    if (grabPosition.isSamePosition(dest)) {
       resetActivePiece();
-      updateSelectedPiece(pieces.find((p) => isSamePosition(p.position, grabPosition)));
+      updateSelectedPiece(pieces.find((p) => p.position.isSamePosition(grabPosition)));
       return;
     }
 
-    const currentPiece = pieces.find((p) => isSamePosition(p.position, grabPosition));
+    const currentPiece = pieces.find((p) => p.position.isSamePosition(grabPosition));
     if (currentPiece) {
       executeMove(currentPiece, dest);
     } else {
       resetActivePiece();
     }
 
-    setActivePiece(null);
+    activePieceRef.current = null;
     setHoverPosition(null);
   }
 
   function executeMove(piece: Piece, dest: Position): void {
-    const isDragging = !!activePiece;
+    const isDragging = !!activePieceRef.current;
 
     const moved = playMove(
       piece,
@@ -169,23 +185,21 @@ export default function Board({ pieces, updatePossibleMoves, playMove, promotePa
     );
 
     if (moved) {
-      setLastMove({ from: { ...grabPositionRef.current }, to: dest });
-    } else if (activePiece) {
+      setLastMove({ from: new Position(grabPositionRef.current.x, grabPositionRef.current.y), to: dest });
+    } else if (activePieceRef.current) {
       resetActivePiece();
     }
 
     updateSelectedPiece(null);
-    grabPositionRef.current = { x: -1, y: -1 };
+    grabPositionRef.current = new Position(-1, -1);
   }
 
-  const chessBoard = chessBoardRef.current;
-
-  const promotionBoxLeft = promotionPawn
-    ? (chessBoard?.offsetLeft ?? 0) + promotionPawn.position.x * GRID_SIZE
+  const promotionBoxLeft = promotionPawn 
+    ? promotionPawn.position.x * GRID_SIZE + boardOffset.left
     : 0;
-  const promotionBoxTop = promotionPawn?.team === TeamType.OUR
-    ? (chessBoard?.offsetTop ?? 0)
-    : (chessBoard?.offsetTop ?? 0) + 7 * GRID_SIZE;
+  const promotionBoxTop = promotionPawn 
+    ? (promotionPawn.team === TeamType.OUR ? 0 : 7 * GRID_SIZE) + boardOffset.top
+    : 0;
 
   function handlePromote(pieceType: string): void {
     if (!promotionPawn) return;
@@ -197,10 +211,11 @@ export default function Board({ pieces, updatePossibleMoves, playMove, promotePa
 
   for (let i = VERTICAL_AXIS.length - 1; i >= 0; i--) {
     for (let j = 0; j < HORIZONTAL_AXIS.length; j++) {
-      const piece       = pieces.find((p) => isSamePosition(p.position, { x: j, y: i }));
-      const grabPiece_  = pieces.find((p) => isSamePosition(p.position, grabPosition));
-      const hint        = grabPiece_?.possibleMoves?.some((p) => isSamePosition(p, { x: j, y: i })) ?? false;
-      const isAnimating = animatingPosition ? isSamePosition(animatingPosition.from, { x: j, y: i }) : false;
+      const boardPosition = new Position(j, i);
+      const piece       = pieces.find((p) => p.position.isSamePosition(boardPosition));
+      const grabPiece_  = pieces.find((p) => p.position.isSamePosition(grabPosition));
+      const hint        = grabPiece_?.possibleMoves?.some((p) => p.isSamePosition(boardPosition)) ?? false;
+      const isAnimating = animatingPosition ? animatingPosition.from.isSamePosition(boardPosition) : false;
 
       board.push(
         <Tile
@@ -210,10 +225,10 @@ export default function Board({ pieces, updatePossibleMoves, playMove, promotePa
           hint={hint}
           translateX={isAnimating ? animatingPosition!.translateX : 0}
           translateY={isAnimating ? animatingPosition!.translateY : 0}
-          hovered={!!hoverPosition && !!activePiece && isSamePosition(hoverPosition, { x: j, y: i })}
-          selected={!!selectedPieceRef.current && isSamePosition({ x: j, y: i }, grabPositionRef.current)}
-          lastMoveFrom={!!lastMove && isSamePosition({ x: j, y: i }, lastMove.from)}
-          lastMoveTo={!!lastMove && isSamePosition({ x: j, y: i }, lastMove.to)}
+          hovered={!!hoverPosition && hoverPosition.isSamePosition(boardPosition)}
+          selected={!!selectedPiece && boardPosition.isSamePosition(grabPosition)}
+          lastMoveFrom={!!lastMove && boardPosition.isSamePosition(lastMove.from)}
+          lastMoveTo={!!lastMove && boardPosition.isSamePosition(lastMove.to)}
         />,
       );
     }
@@ -221,12 +236,6 @@ export default function Board({ pieces, updatePossibleMoves, playMove, promotePa
 
   return (
     <>
-      <PawnPromotionBox
-        promotionPawn={promotionPawn}
-        promotionBoxLeft={promotionBoxLeft}
-        promotionBoxTop={promotionBoxTop}
-        onPromote={handlePromote}
-      />
       <div
         className="board"
         ref={chessBoardRef}
@@ -234,6 +243,12 @@ export default function Board({ pieces, updatePossibleMoves, playMove, promotePa
         onMouseMove={movePiece}
         onMouseUp={dropPiece}
       >
+        <PawnPromotionBox
+          promotionPawn={promotionPawn}
+          promotionBoxLeft={promotionBoxLeft}
+          promotionBoxTop={promotionBoxTop}
+          onPromote={handlePromote}
+        />
         {board}
       </div>
     </>

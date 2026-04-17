@@ -1,339 +1,63 @@
+import { Piece } from "../models/Piece";
+import { Pawn } from "../models/Pawn";
+import { Position } from "../models/Position";
+import { PieceType, TeamType } from "./Types";
+import { Chessboard } from "../models/Chessboard";
+
 export const HORIZONTAL_AXIS: string[] = ["a","b","c","d","e","f","g","h"];
 export const VERTICAL_AXIS: string[] = ["1", "2", "3", "4", "5", "6", "7", "8"];
 
 export const GRID_SIZE:number  = 100;
-
-export function isSamePosition(p1:Position, p2:Position) : boolean{
-  return p1.x === p2.x && p1.y === p2.y;
-}
 
 export function playSound(sound: string): void {
     const audio = new Audio(`/sounds/${sound}`);
     audio.play();
   }
 
-export interface Position{
-  x:number;
-  y:number;
-}
+export const initialBoard : Chessboard = new Chessboard([
+  // Black pawns
+  new Pawn(new Position(0, 6),  TeamType.OPPONENT),
+  new Pawn(new Position(1, 6),  TeamType.OPPONENT),
+  new Pawn(new Position(2, 6),  TeamType.OPPONENT),
+  new Pawn(new Position(3, 6),  TeamType.OPPONENT),
+  new Pawn(new Position(4, 6),  TeamType.OPPONENT),
+  new Pawn(new Position(5, 6),  TeamType.OPPONENT),
+  new Pawn(new Position(6, 6),  TeamType.OPPONENT),
+  new Pawn(new Position(7, 6),  TeamType.OPPONENT),
 
-export enum PieceType {
-  PAWN,
-  BISHOP,
-  KNIGHT,
-  ROOK,
-  KING,
-  QUEEN,
-}
+  // White pawns
+  new Pawn(new Position(0, 1),  TeamType.OUR),
+  new Pawn(new Position(1, 1),  TeamType.OUR),
+  new Pawn(new Position(2, 1),  TeamType.OUR),
+  new Pawn(new Position(3, 1),  TeamType.OUR),
+  new Pawn(new Position(4, 1),  TeamType.OUR),
+  new Pawn(new Position(5, 1),  TeamType.OUR),
+  new Pawn(new Position(6, 1),  TeamType.OUR),
+  new Pawn(new Position(7, 1),  TeamType.OUR),
 
-export enum TeamType {
-  OUR,
-  OPPONENT,
-}
+  // Rooks
+  new Piece(new Position(0, 0), PieceType.ROOK,   TeamType.OUR),
+  new Piece(new Position(7, 0), PieceType.ROOK,   TeamType.OUR),
+  new Piece(new Position(0, 7), PieceType.ROOK,   TeamType.OPPONENT),
+  new Piece(new Position(7, 7), PieceType.ROOK,   TeamType.OPPONENT),
 
-export interface Piece {
-  image: string;
-  position: Position
-  type: PieceType;
-  team: TeamType;
-  enPassant?: boolean;
-  possibleMoves?: Position[];
-}
+  // Knights
+  new Piece(new Position(1, 0), PieceType.KNIGHT, TeamType.OUR),
+  new Piece(new Position(6, 0), PieceType.KNIGHT, TeamType.OUR),
+  new Piece(new Position(1, 7), PieceType.KNIGHT, TeamType.OPPONENT),
+  new Piece(new Position(6, 7), PieceType.KNIGHT, TeamType.OPPONENT),
 
-export const initialBoardState: Piece[] = [
-  //Black pawns
-  {
-    image: `/imgs/pieces/bp.png`,
-    position: {
-      x:0,
-      y:6
-    },
-    type: PieceType.PAWN,
-    team: TeamType.OPPONENT,
-  },
-  {
-    image: `/imgs/pieces/bp.png`,
-    position: {
-      x:1,
-      y:6
-    },
-    type: PieceType.PAWN,
-    team: TeamType.OPPONENT,
-  },
-  {
-    image: `/imgs/pieces/bp.png`,
-    position: {
-      x:2,
-      y:6
-    },
-    type: PieceType.PAWN,
-    team: TeamType.OPPONENT,
-  },
-  {
-    image: `/imgs/pieces/bp.png`,
-    position: {
-      x:3,
-      y:6
-    },
-    type: PieceType.PAWN,
-    team: TeamType.OPPONENT,
-  },
-  {
-    image: `/imgs/pieces/bp.png`,
-    position: {
-      x:4,
-      y:6
-    },
-    type: PieceType.PAWN,
-    team: TeamType.OPPONENT,
-  },
-  {
-    image: `/imgs/pieces/bp.png`,
-     position: {
-      x:5,
-      y:6
-    },
-    type: PieceType.PAWN,
-    team: TeamType.OPPONENT,
-  },
-  {
-    image: `/imgs/pieces/bp.png`,
-    position: {
-      x:6,
-      y:6
-    },
-    type: PieceType.PAWN,
-    team: TeamType.OPPONENT,
-  },
-  {
-    image: `/imgs/pieces/bp.png`,
-    position: {
-      x:7,
-      y:6
-    },
-    type: PieceType.PAWN,
-    team: TeamType.OPPONENT,
-  },
-  //White pawns
-  {
-    image: `/imgs/pieces/wp.png`,
-    position: {
-      x:0,
-      y:1
-    },
-    type: PieceType.PAWN,
-    team: TeamType.OUR,
-  },
-  {
-    image: `/imgs/pieces/wp.png`,
-    position: {
-      x:1,
-      y:1
-    },
-    type: PieceType.PAWN,
-    team: TeamType.OUR,
-  },
-  {
-    image: `/imgs/pieces/wp.png`,
-    position: {
-      x:2,
-      y:1
-    },
-    type: PieceType.PAWN,
-    team: TeamType.OUR,
-  },
-  {
-    image: `/imgs/pieces/wp.png`,
-    position: {
-      x:3,
-      y:1
-    },
-    type: PieceType.PAWN,
-    team: TeamType.OUR,
-  },
-  {
-    image: `/imgs/pieces/wp.png`,
-    position: {
-      x:4,
-      y:1
-    },
-    type: PieceType.PAWN,
-    team: TeamType.OUR,
-  },
-  {
-    image: `/imgs/pieces/wp.png`,
-    position: {
-      x:5,
-      y:1
-    },
-    type: PieceType.PAWN,
-    team: TeamType.OUR,
-  },
-  {
-    image: `/imgs/pieces/wp.png`,
-    position: {
-      x:6,
-      y:1
-    },
-    type: PieceType.PAWN,
-    team: TeamType.OUR,
-  },
-  {
-    image: `/imgs/pieces/wp.png`,
-    position: {
-      x:7,
-      y:1
-    },
-    type: PieceType.PAWN,
-    team: TeamType.OUR,
-  },
-  //ROOKS
-  {
-    image: `/imgs/pieces/wr.png`,
-    position: {
-      x:0,
-      y:0
-    },
-    type: PieceType.ROOK,
-    team: TeamType.OUR,
-  },
-  {
-    image: `/imgs/pieces/wr.png`,
-    position: {
-      x:7,
-      y:0
-    },
-    type: PieceType.ROOK,
-    team: TeamType.OUR,
-  },
-  {
-    image: `/imgs/pieces/br.png`,
-    position: {
-      x:0,
-      y:7
-    },
-    type: PieceType.ROOK,
-    team: TeamType.OPPONENT,
-  },
-  {
-    image: `/imgs/pieces/br.png`,
-    position: {
-      x:7,
-      y:7
-    },
-    type: PieceType.ROOK,
-    team: TeamType.OPPONENT,
-  },
-  //Knights
-  {
-    image: `/imgs/pieces/wn.png`,
-    position: {
-      x:1,
-      y:0
-    },
-    type: PieceType.KNIGHT,
-    team: TeamType.OUR,
-  },
-  {
-    image: `/imgs/pieces/wn.png`,
-    position: {
-      x:6,
-      y:0
-    },
-    type: PieceType.KNIGHT,
-    team: TeamType.OUR,
-  },
-  {
-    image: `/imgs/pieces/bn.png`,
-    position: {
-      x:1,
-      y:7
-    },
-    type: PieceType.KNIGHT,
-    team: TeamType.OPPONENT,
-  },
-  {
-    image: `/imgs/pieces/bn.png`,
-    position: {
-      x:6,
-      y:7
-    },
-    type: PieceType.KNIGHT,
-    team: TeamType.OPPONENT,
-  },
-  //Bishop's
-  {
-    image: `/imgs/pieces/wb.png`,
-    position: {
-      x:2,
-      y:0
-    },
-    type: PieceType.BISHOP,
-    team: TeamType.OUR,
-  },
-  {
-    image: `/imgs/pieces/wb.png`,
-    position: {
-      x:5,
-      y:0
-    },
-    type: PieceType.BISHOP,
-    team: TeamType.OUR,
-  },
-  {
-    image: `/imgs/pieces/bb.png`,
-    position: {
-      x:2,
-      y:7
-    },
-    type: PieceType.BISHOP,
-    team: TeamType.OPPONENT,
-  },
-  {
-    image: `/imgs/pieces/bb.png`,
-    position: {
-      x:5,
-      y:7
-    },
-    type: PieceType.BISHOP,
-    team: TeamType.OPPONENT,
-  },
-  //King's
-  {
-    image: `/imgs/pieces/wk.png`,
-    position: {
-      x:4,
-      y:0
-    },
-    type: PieceType.KING,
-    team: TeamType.OUR,
-  },
-  {
-    image: `/imgs/pieces/bk.png`,
-    position: {
-      x:4,
-      y:7
-    },
-    type: PieceType.KING,
-    team: TeamType.OPPONENT,
-  },
-  //Queen's
-  {
-    image: `/imgs/pieces/wq.png`,
-    position: {
-      x:3,
-      y:0
-    },
-    type: PieceType.QUEEN,
-    team: TeamType.OUR,
-  },
-  {
-    image: `/imgs/pieces/bq.png`,
-    position: {
-      x:3,
-      y:7
-    },
-    type: PieceType.QUEEN,
-    team: TeamType.OPPONENT,
-  },
-];
+  // Bishops
+  new Piece(new Position(2, 0), PieceType.BISHOP, TeamType.OUR),
+  new Piece(new Position(5, 0), PieceType.BISHOP, TeamType.OUR),
+  new Piece(new Position(2, 7), PieceType.BISHOP, TeamType.OPPONENT),
+  new Piece(new Position(5, 7), PieceType.BISHOP, TeamType.OPPONENT),
+
+  // Kings
+  new Piece(new Position(4, 0), PieceType.KING,   TeamType.OUR),
+  new Piece(new Position(4, 7), PieceType.KING,   TeamType.OPPONENT),
+
+  // Queens
+  new Piece(new Position(3, 0), PieceType.QUEEN,  TeamType.OUR),
+  new Piece(new Position(3, 7), PieceType.QUEEN,  TeamType.OPPONENT),
+]);

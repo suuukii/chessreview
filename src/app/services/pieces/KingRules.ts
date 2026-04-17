@@ -1,4 +1,6 @@
-import { Position, TeamType, Piece, isSamePosition} from "../Constants"
+import { Piece } from "@/app/models/Piece";
+import { Position } from "@/app/models/Position";
+import {TeamType } from "../Types"
 import {isTileEmptyOrOccupiedByOpponent, isTileOccupied, isTileOccupiedByOpponent} from "../Rules"
 
 export function kingMove(
@@ -11,9 +13,12 @@ export function kingMove(
     const multiplierX = (desiredPosition.x < initialPosition.x)? -1 : (desiredPosition.x > initialPosition.x)? 1 : 0;
 
     for(let i: number = 1; i < 2; i++){
-      const passedPosition: Position = {x: initialPosition.x + (i * multiplierX), y: initialPosition.y + (i * multiplierY)}
+      const passedPosition = new Position(
+      initialPosition.x + (i * multiplierX),
+      initialPosition.y + (i * multiplierY),
+    );
       
-      if(isSamePosition(passedPosition, desiredPosition)){
+      if (passedPosition.isSamePosition(desiredPosition)) {
         if(isTileEmptyOrOccupiedByOpponent(passedPosition, boardState, team)){
           return true;
         }
@@ -30,7 +35,7 @@ export function kingMove(
     const possibleMoves: Position[] = [];
 
     for (let i: number = 1; i < 2; i++) {
-          const destination: Position = {x: king.position.x, y: king.position.y + i};
+          const destination = new Position(king.position.x, king.position.y + i);
           if(!isTileOccupied(destination, boardState)){
               possibleMoves.push(destination);
           } else if(isTileOccupiedByOpponent(destination, boardState, king.team)){ 
@@ -43,7 +48,7 @@ export function kingMove(
       
         //bottom movement
         for (let i: number = 1; i < 2; i++) {
-          const destination: Position = {x: king.position.x, y: king.position.y - i};
+          const destination = new Position(king.position.x, king.position.y - i);
           if(!isTileOccupied(destination, boardState)){
               possibleMoves.push(destination);
           } else if(isTileOccupiedByOpponent(destination, boardState, king.team)){ 
@@ -56,7 +61,7 @@ export function kingMove(
       
         //left movement
         for (let i: number = 1; i < 2; i++) {
-          const destination: Position = {x: king.position.x - i, y: king.position.y};
+          const destination = new Position(king.position.x - i, king.position.y);
           if(!isTileOccupied(destination, boardState)){
               possibleMoves.push(destination);
           } else if(isTileOccupiedByOpponent(destination, boardState, king.team)){ 
@@ -69,7 +74,7 @@ export function kingMove(
           
           //right movement
         for (let i: number = 1; i < 2; i++) {
-          const destination: Position = {x: king.position.x + i, y: king.position.y};
+          const destination = new Position(king.position.x + i, king.position.y);
           if(!isTileOccupied(destination, boardState)){
               possibleMoves.push(destination);
           } else if(isTileOccupiedByOpponent(destination, boardState, king.team)){ 
@@ -82,7 +87,7 @@ export function kingMove(
     
         //Upper Right Movement 
           for (let i: number = 1; i < 2; i++) {
-            const destination: Position = {x:king.position.x + i, y:king.position.y + i};
+            const destination = new Position(king.position.x + i, king.position.y + i);
             if(!isTileOccupied(destination, boardState)){
               possibleMoves.push(destination);
             } else if(isTileOccupiedByOpponent(destination, boardState,king.team)){
@@ -94,7 +99,7 @@ export function kingMove(
           }
           //bottom right
           for (let i: number = 1; i < 2; i++) {
-            const destination: Position = {x:king.position.x + i, y:king.position.y - i};
+            const destination = new Position(king.position.x + i, king.position.y - i);
             if(!isTileOccupied(destination, boardState)){
               possibleMoves.push(destination);
             } else if(isTileOccupiedByOpponent(destination, boardState,king.team)){
@@ -106,7 +111,7 @@ export function kingMove(
           }
           //up left
           for (let i: number = 1; i < 2; i++) {
-            const destination: Position = {x:king.position.x - i, y:king.position.y + i};
+            const destination = new Position(king.position.x - i, king.position.y + i);
             if(!isTileOccupied(destination, boardState)){
               possibleMoves.push(destination);
             } else if(isTileOccupiedByOpponent(destination, boardState,king.team)){
@@ -118,7 +123,7 @@ export function kingMove(
           }
           //bottom left
           for (let i: number = 1; i < 2; i++) {
-            const destination: Position = {x:king.position.x - i, y:king.position.y - i};
+            const destination = new Position(king.position.x - i, king.position.y - i);
             if(!isTileOccupied(destination, boardState)){
               possibleMoves.push(destination);
             } else if(isTileOccupiedByOpponent(destination, boardState,king.team)){

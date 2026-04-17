@@ -1,10 +1,12 @@
-import { Position, Piece, TeamType, isSamePosition } from "./Constants";
+import {TeamType } from "./Types"
+import { Position } from "../models/Position";
+import { Piece } from "../models/Piece";
 
 export function isTileOccupied(
   position: Position,
   boardState: Piece[],
 ): boolean {
-  const piece = boardState.find((p) => isSamePosition(p.position, position));
+  const piece = boardState.find((p) => p.position.isSamePosition(position));
   if (piece) {
     return true;
   }
@@ -17,7 +19,7 @@ export function isTileOccupiedByOpponent(
   team: TeamType,
 ): boolean {
   const piece = boardState.find(
-    (p) => isSamePosition(p.position, position) && p.team !== team,
+    (p) => p.position.isSamePosition(position) && p.team !== team,
   );
   if (piece) {
     return true;

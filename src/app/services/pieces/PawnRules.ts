@@ -1,4 +1,7 @@
-import { TeamType, Piece, Position, isSamePosition, PieceType } from "../Constants";
+import { Pawn } from "@/app/models/Pawn";
+import { Piece } from "@/app/models/Piece";
+import { Position } from "@/app/models/Position";
+import { TeamType } from "../Types"
 import { isTileOccupied, isTileOccupiedByOpponent } from "../Rules";
 
 export function pawnMove(
@@ -19,7 +22,7 @@ export function pawnMove(
     if (
       !isTileOccupied(desiredPosition, boardState) &&
       !isTileOccupied(
-        { x: desiredPosition.x, y: desiredPosition.y - pawnDirection },
+        new Position(desiredPosition.x, desiredPosition.y - pawnDirection),
         boardState,
       )
     ) {
@@ -54,32 +57,20 @@ export function pawnMove(
 }
 
 export function getPossiblePawnMoves(
-  pawn: Piece,
+  pawn: Pawn,
   boardState: Piece[],
 ): Position[] {
   const possibleMoves: Position[] = [];
   const pawnDirection = pawn.team === TeamType.OUR ? 1 : -1;
   const specialRow = pawn.team === TeamType.OUR ? 1 : 6;
 
-  const normalMove: Position = {
-    x: pawn.position.x,
-    y: pawn.position.y + pawnDirection,
-  };
-  const specialMove: Position = {
-    x: pawn.position.x,
-    y: pawn.position.y + pawnDirection * 2,
-  };
-  const upperLeftAttack: Position = {
-    x: pawn.position.x - 1,
-    y: pawn.position.y + 1,
-  };
-  const upperRightAttack: Position = {
-    x: pawn.position.x + 1,
-    y: pawn.position.y + 1,
-  };
+  const normalMove = new Position(pawn.position.x, pawn.position.y + pawnDirection);
+  const specialMove = new Position(pawn.position.x, pawn.position.y + pawnDirection * 2);
+  const upperLeftAttack = new Position(pawn.position.x - 1, pawn.position.y + 1);
+  const upperRightAttack = new Position(pawn.position.x + 1, pawn.position.y + 1);
 
-  const leftPosition : Position = {x:pawn.position.x - 1, y:pawn.position.y};
-  const rightPosition : Position = {x:pawn.position.x + 1, y:pawn.position.y};
+  const leftPosition = new Position(pawn.position.x - 1, pawn.position.y);
+  const rightPosition = new Position(pawn.position.x + 1, pawn.position.y);
 
   if (!isTileOccupied(normalMove, boardState)) {
     possibleMoves.push(normalMove);
@@ -93,8 +84,8 @@ export function getPossiblePawnMoves(
     if (isTileOccupiedByOpponent(upperLeftAttack, boardState, pawn.team)) {
       possibleMoves.push(upperLeftAttack);
     } else if(!isTileOccupied(upperLeftAttack, boardState)){
-      const leftPiece = boardState.find(p => isSamePosition(p.position, leftPosition));
-      if(leftPiece != null && leftPiece.type == PieceType.PAWN && leftPiece.enPassant){
+      const leftPiece = boardState.find(p => p.position.isSamePosition(leftPosition));
+      if(leftPiece != null && leftPiece.isPawn && (leftPiece as Pawn).enPassant){
         possibleMoves.push(upperLeftAttack);
       }
     }
@@ -102,8 +93,8 @@ export function getPossiblePawnMoves(
     if (isTileOccupiedByOpponent(upperRightAttack, boardState, pawn.team)){
       possibleMoves.push(upperRightAttack);
     } else if(!isTileOccupied(upperRightAttack, boardState)){
-      const rightPiece = boardState.find(p => isSamePosition(p.position, rightPosition));
-      if(rightPiece != null && rightPiece.type == PieceType.PAWN && rightPiece.enPassant){
+      const rightPiece = boardState.find(p => p.position.isSamePosition(rightPosition));
+      if(rightPiece != null && rightPiece.isPawn && (rightPiece as Pawn).enPassant){
         possibleMoves.push(upperRightAttack);
       }
     }
