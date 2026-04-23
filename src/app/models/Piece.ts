@@ -28,6 +28,13 @@ export class Piece {
     );
   }
 
+  isSamePosition(position: Position): boolean{
+    return(
+      this.position.x === position.x &&
+      this.position.y === position.y
+    )
+  }
+
   get isPawn(): boolean {
     return this.type === PieceType.PAWN;
   }

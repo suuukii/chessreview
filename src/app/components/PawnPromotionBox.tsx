@@ -2,7 +2,7 @@ import "../styles/pawn-promotion-box.css"
 import Image from "next/image";
 import { Piece } from "../models/Piece";
 import { GRID_SIZE } from "../services/Constants";
-import {TeamType } from "../services/Types"
+import { TeamType } from "../services/Types"
 
 interface PawnPromotionBoxProps {
   promotionPawn: Piece | null;
@@ -19,9 +19,7 @@ export default function PawnPromotionBox({
   promotionBoxTop,
   onPromote,
 }: PawnPromotionBoxProps) {
-  if (!promotionPawn) {
-    return null;
-  }
+  if (!promotionPawn) return null;
 
   const team = promotionPawn.team === TeamType.OUR ? "w" : "b";
 
@@ -29,9 +27,9 @@ export default function PawnPromotionBox({
     <div
       className="pawn-promotion-box"
       style={{
-        display: promotionPawn ? "flex" : "none",
         left: `${promotionBoxLeft}px`,
         top: `${promotionBoxTop}px`,
+        flexDirection: promotionPawn.team === TeamType.OUR ? "column-reverse" : "column",
       }}
     >
       {options.map((option) => (

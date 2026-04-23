@@ -40,7 +40,7 @@ export default function Tile({ number, image, hint, translateX = 0, translateY =
           style={{
             backgroundImage: `url(${image})`,
             transform: `translate(${translateX}px, ${translateY}px)`,
-            zIndex: isAnimating ? 100 : 1,
+            zIndex: isAnimating ? 1000 : 10,
             transition: isAnimating ? "transform 0.15s ease-in-out" : "none"
           }}
           className="chess-piece"

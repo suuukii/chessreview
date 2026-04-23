@@ -4,6 +4,7 @@
   display: grid;
   place-content: center;
   pointer-events: none;
+  position: relative;
 }
 
 .tile img {
@@ -32,7 +33,7 @@
   background-size: var(--piece-size);
   transition: transform 0.1s ease-in-out;
   will-change: transform;
-  z-index: 10;
+  z-index: 100;
   pointer-events: all;
   user-select: none;
   -webkit-user-drag: none;
@@ -40,7 +41,7 @@
 
 .chess-piece.dragging {
   transition: none !important;
-  z-index: 100;
+  z-index: 90;
 }
 
 .tile .chess-piece:hover {

@@ -10,6 +10,7 @@ export enum PieceType {
 export enum MoveResult {
   INVALID,
   MOVE,
+  CHECK,
   CAPTURE,
   EN_PASSANT,
   PROMOTION

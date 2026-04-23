@@ -11,101 +11,149 @@ import { Position } from "./Position";
 
 export class Chessboard {
   pieces: Piece[];
+  totalTurns: number;
 
-  constructor(pieces: Piece[]) {
+  constructor(pieces: Piece[], totalTurns: number) {
     this.pieces = pieces;
+    this.totalTurns = totalTurns;
   }
 
-  private updateEnPassantStatus(
-    movedPiece: Piece | null,
-    from: Position,
-    destination: Position,
-  ) {
-    this.pieces.forEach((p) => {
-      if (p.isPawn) {
-        if (p === movedPiece) {
-          (p as Pawn).enPassant = Math.abs(from.y - destination.y) === 2;
-        } else {
-          (p as Pawn).enPassant = false;
-        }
-      }
-    });
+  get currentTeam(): TeamType{
+    return this.totalTurns % 2 === 0 ? TeamType.OPPONENT : TeamType.OUR
+  }
+
+  clone(): Chessboard {
+    return new Chessboard(
+      this.pieces.map((p) => p.clone()),
+      this.totalTurns,
+    );
+  }
+
+  getValidMove(piece: Piece, boardState: Piece[]): Position[] {
+    switch (piece.type) {
+      case PieceType.PAWN:   return getPossiblePawnMoves(piece, boardState);
+      case PieceType.BISHOP: return getPossibleBishopMoves(piece, boardState);
+      case PieceType.ROOK:   return getPossibleRookMoves(piece, boardState);
+      case PieceType.KING:   return getPossibleKingMoves(piece, boardState);
+      case PieceType.KNIGHT: return getPossibleKnightMoves(piece, boardState);
+      case PieceType.QUEEN:  return getPossibleQueenMoves(piece, boardState);
+      default:               return [];
+    }
   }
 
   calculateAllMoves(): void {
     for (const piece of this.pieces) {
       piece.possibleMoves = this.getValidMove(piece, this.pieces);
     }
+
+    this.checkCurrentTeamMoves();
+    console.log(this.isKingInAttack())
+
+    for(const piece of this.pieces.filter((p) => p.team !== this.currentTeam)){
+      piece.possibleMoves = [];
+    }
   }
 
-  getValidMove(piece: Piece, boardState: Piece[]): Position[]{
-    switch (piece.type){
-      case PieceType.PAWN: return getPossiblePawnMoves(piece, boardState)
-      case PieceType.BISHOP: return getPossibleBishopMoves(piece, boardState)
-      case PieceType.ROOK: return getPossibleRookMoves(piece, boardState)
-      case PieceType.KING: return getPossibleKingMoves(piece, boardState)
-      case PieceType.KNIGHT: return getPossibleKnightMoves(piece, boardState)
-      case PieceType.QUEEN: return getPossibleQueenMoves(piece, boardState)
+isKingInAttack(): boolean {
+  const king = this.pieces.find(p => p.team === this.currentTeam && p.isKing)
+  for(const piece of this.pieces){
+    if(king && piece.possibleMoves){
+      if(piece.team === king.team) continue;
+      if(piece.possibleMoves.some(m => m.isSamePosition(king.position))){
+        return true;
+      }
     }
-    return []
+  }
+  return false;
+}
+
+  checkCurrentTeamMoves(){
+    for(const piece of this.pieces.filter(p => p.team === this.currentTeam)){
+      if(piece.possibleMoves === undefined) continue;
+
+      for(const move of piece.possibleMoves){
+        const simulatedBoard = this.clone()
+        
+        simulatedBoard.pieces = simulatedBoard.pieces.filter(p => !p.isSamePosition(move))
+
+        const simulatedPiece = simulatedBoard.pieces.find(p => p.isSamePiecePosition(piece))!
+        simulatedPiece.position = move.clone()
+        const simulatedKing = simulatedBoard.pieces.find(p => p.team === simulatedBoard.currentTeam && p.isKing)!
+
+        for(const enemy of simulatedBoard.pieces.filter(p => p.team !== simulatedBoard.currentTeam)){
+          enemy.possibleMoves = simulatedBoard.getValidMove(enemy, simulatedBoard.pieces)
+
+          if(enemy.isPawn){
+            if(enemy.possibleMoves.some(m => m.x !== enemy.position.x && m.isSamePosition(simulatedKing.position))){
+              piece.possibleMoves = piece.possibleMoves?.filter(m => !m.isSamePosition(move))
+            }
+          } else {
+            if(enemy.possibleMoves.some(m => m.isSamePosition(simulatedKing.position))){
+              piece.possibleMoves = piece.possibleMoves?.filter(m => !m.isSamePosition(move))
+            }
+          }
+        }
+      }
+    }
   }
 
   promotePawn(piece: Piece, type: PieceType): void {
     this.pieces = this.pieces.map((p) => {
-      if (p.position.x === piece.position.x && p.position.y === piece.position.y) {
-        const promotedPiece = new Piece(p.position, type, p.team);
-        promotedPiece.possibleMoves = [];
-        return promotedPiece;
-      }
-      return p;
+      if (!p.position.isSamePosition(piece.position)) return p;
+      const promoted = new Piece(p.position, type, p.team);
+      promoted.possibleMoves = [];
+      return promoted;
     });
   }
 
-  playMove(
-    enPassantMove: boolean,
-    isValidMove: boolean,
-    playedPiece: Piece,
-    destination: Position
-  ): MoveResult {
-    const from = playedPiece.position;
-    const pawnDirection = playedPiece.team === TeamType.OUR ? 1 : -1;
+playMove(
+  enPassantMove: boolean,
+  isValidMove: boolean,
+  playedPiece: Piece,
+  destination: Position,
+): MoveResult {
+  if (!enPassantMove && !isValidMove) return MoveResult.INVALID;
 
-    if (!enPassantMove && !isValidMove) return MoveResult.INVALID;
+  const from = playedPiece.position;
 
-    if (enPassantMove) {
-      this.pieces = this.pieces.reduce((results, p) => {
-        if (p.position.isSamePosition(from)) {
-          results.push(new Piece(destination, p.type, p.team));
-        } else if (!p.position.isSamePosition(new Position(destination.x, destination.y - pawnDirection))) {
-          results.push(p);
-        }
-        return results;
-      }, [] as Piece[]);
-      
-      this.updateEnPassantStatus(null, from, destination);
-      return MoveResult.EN_PASSANT;
+  const targetPiece = this.pieces.find((p) => p.position.isSamePosition(destination));
+  const isCapture = !!targetPiece && targetPiece.team !== playedPiece.team;
+
+  this.pieces = this.pieces.reduce((results, p) => {
+    if (p.position.isSamePosition(from)) {
+      results.push(new Piece(destination, p.type, p.team));
+    } else if (!p.position.isSamePosition(destination)) {
+      results.push(p);
     }
+    return results;
+  }, [] as Piece[]);
 
-    const targetPiece = this.pieces.find((p) => p.position.isSamePosition(destination));
-    const isCapture = !!targetPiece && targetPiece.team !== playedPiece.team;
 
-    this.pieces = this.pieces.reduce((results, p) => {
-      if (p.position.isSamePosition(from)) {
-        results.push(new Piece(destination, p.type, p.team));
-      } else if (!p.position.isSamePosition(destination)) {
-        results.push(p);
-      }
-      return results;
-    }, [] as Piece[]);
+  this.totalTurns++; 
 
-    const movedPiece = this.pieces.find(p => p.position.isSamePosition(destination)) || null;
-    this.updateEnPassantStatus(movedPiece, from, destination);
-
-    return isCapture ? MoveResult.CAPTURE : MoveResult.MOVE;
+  for (const piece of this.pieces) {
+    piece.possibleMoves = this.getValidMove(piece, this.pieces);
   }
 
-  copy(): Chessboard{
-    const clonedPieces = this.pieces.map((p) => p.clone())
-    return new Chessboard(clonedPieces)
+  const isCheck = this.isKingInAttack();
+
+  if (isCheck) return MoveResult.CHECK;
+  if (isCapture || enPassantMove) return MoveResult.CAPTURE;
+  return MoveResult.MOVE;
+}
+
+  private updateEnPassantStatus(
+    movedPiece: Piece | null,
+    from: Position,
+    destination: Position,
+  ): void {
+    this.pieces.forEach((p) => {
+      if (!p.isPawn) return;
+      if (p === movedPiece) {
+        (p as Pawn).enPassant = Math.abs(from.y - destination.y) === 2;
+      } else {
+        (p as Pawn).enPassant = false;
+      }
+    });
   }
 }
