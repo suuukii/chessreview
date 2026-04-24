@@ -3,7 +3,7 @@ import { Piece } from "./Piece";
 import { Position } from "./Position";
 
 export class Rook extends Piece {
-    constructor(position:Position,team: TeamType){
-        super(position, PieceType.ROOK, team)
+    constructor(position:Position,team: TeamType, hasMoved:boolean){
+        super(position, PieceType.ROOK, team, hasMoved)
     }
 }

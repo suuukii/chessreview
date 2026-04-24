@@ -8,13 +8,25 @@ interface Props {
   hint: boolean;
   translateX?: number;
   translateY?: number;
+  animationVariant?: "move" | "castle-king" | "castle-rook";
   hovered?: boolean;
   selected?: boolean;
   lastMoveFrom?: boolean;
   lastMoveTo?: boolean;
 }
 
-export default function Tile({ number, image, hint, translateX = 0, translateY = 0, hovered, selected, lastMoveFrom, lastMoveTo }: Props) {
+export default function Tile({
+  number,
+  image,
+  hint,
+  translateX = 0,
+  translateY = 0,
+  animationVariant = "move",
+  hovered,
+  selected,
+  lastMoveFrom,
+  lastMoveTo,
+}: Props) {
   const className: string = [
     "tile",
     number % 2 === 0 && "black-tile",
@@ -43,7 +55,13 @@ export default function Tile({ number, image, hint, translateX = 0, translateY =
             zIndex: isAnimating ? 1000 : 10,
             transition: isAnimating ? "transform 0.15s ease-in-out" : "none"
           }}
-          className="chess-piece"
+          className={[
+            "chess-piece",
+            isAnimating && animationVariant === "castle-king" && "chess-piece-castle-king",
+            isAnimating && animationVariant === "castle-rook" && "chess-piece-castle-rook",
+          ]
+            .filter(Boolean)
+            .join(" ")}
           onDragStart={(e) => e.preventDefault()}
         />
       )}

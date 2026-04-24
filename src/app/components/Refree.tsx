@@ -50,7 +50,14 @@ export default function Referee() {
   function playMove(
     piece: Piece,
     destination: Position,
-    onAnimationStart: (from: Position, tx: number, ty: number) => void,
+    onAnimationStart: (
+      animations: {
+        from: Position;
+        translateX: number;
+        translateY: number;
+        variant?: "move" | "castle-king" | "castle-rook";
+      }[],
+    ) => void,
     onPromotionNeeded: (piece: Piece) => void,
     isDragging: boolean,
   ): boolean {
@@ -82,9 +89,35 @@ export default function Referee() {
     if (!enPassant && !valid) return false;
 
     if (!isDragging) {
-      const translateX = (destination.x - currentPiece.position.x) * GRID_SIZE;
-      const translateY = (currentPiece.position.y - destination.y) * GRID_SIZE;
-      onAnimationStart(currentPiece.position.clone(), translateX, translateY);
+      const animations: {
+        from: Position;
+        translateX: number;
+        translateY: number;
+        variant?: "move" | "castle-king" | "castle-rook";
+      }[] = [
+        {
+          from: currentPiece.position.clone(),
+          translateX: (destination.x - currentPiece.position.x) * GRID_SIZE,
+          translateY: (currentPiece.position.y - destination.y) * GRID_SIZE,
+          variant: "move",
+        },
+      ];
+
+      if (currentPiece.isKing && Math.abs(destination.x - currentPiece.position.x) > 1) {
+        const isKingSideCastle = destination.x > currentPiece.position.x;
+        const rookFrom = new Position(isKingSideCastle ? 7 : 0, currentPiece.position.y);
+        const rookTo = new Position(destination.x + (isKingSideCastle ? -1 : 1), destination.y);
+
+        animations[0].variant = "castle-king";
+        animations.push({
+          from: rookFrom,
+          translateX: (rookTo.x - rookFrom.x) * GRID_SIZE,
+          translateY: (rookFrom.y - rookTo.y) * GRID_SIZE,
+          variant: "castle-rook",
+        });
+      }
+
+      onAnimationStart(animations);
     }
 
     setTimeout(() => {
@@ -94,6 +127,7 @@ export default function Referee() {
       
       if (result === MoveResult.INVALID) return;
 
+
       switch (result) {
         case MoveResult.CAPTURE:
         case MoveResult.EN_PASSANT:
@@ -101,6 +135,9 @@ export default function Referee() {
           break;
         case MoveResult.CHECK:
           playSound("move-check.mp3")
+          break;
+        case MoveResult.CASTLE:
+          playSound("castle.mp3")
           break;
         case MoveResult.MOVE:
           playSound(
@@ -119,10 +156,9 @@ export default function Referee() {
           onPromotionNeeded(pieceAtDestination);
         }
       }
-
       newBoard.calculateAllMoves();
       syncBoard(newBoard);
-    }, isDragging ? 0 : 200);
+    }, isDragging ? 0 : 260);
 
     return true;
   }
@@ -146,7 +182,6 @@ export default function Referee() {
   }
 
   return (<>
-    <p>{board.totalTurns}</p>
     <Board
       pieces={board.pieces}
       playMove={playMove}

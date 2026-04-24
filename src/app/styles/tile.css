@@ -39,6 +39,11 @@
   -webkit-user-drag: none;
 }
 
+.chess-piece-castle-king,
+.chess-piece-castle-rook {
+  transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
 .chess-piece.dragging {
   transition: none !important;
   z-index: 90;

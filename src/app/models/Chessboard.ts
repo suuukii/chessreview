@@ -1,5 +1,5 @@
 import { getPossibleBishopMoves } from "../services/pieces/BishopRules";
-import { getPossibleKingMoves } from "../services/pieces/KingRules";
+import { getCastlingMoves, getPossibleKingMoves } from "../services/pieces/KingRules";
 import { getPossibleKnightMoves } from "../services/pieces/KnightRules";
 import { getPossiblePawnMoves } from "../services/pieces/PawnRules";
 import { getPossibleQueenMoves } from "../services/pieces/QueenRules";
@@ -46,8 +46,13 @@ export class Chessboard {
       piece.possibleMoves = this.getValidMove(piece, this.pieces);
     }
 
+    //catling move logic
+    for(const king of this.pieces.filter(p => p.isKing)){
+      if(!king.possibleMoves) continue;
+      king.possibleMoves = [...king.possibleMoves,  ...getCastlingMoves(king, this.pieces)];
+    }
+
     this.checkCurrentTeamMoves();
-    console.log(this.isKingInAttack())
 
     for(const piece of this.pieces.filter((p) => p.team !== this.currentTeam)){
       piece.possibleMoves = [];
@@ -100,7 +105,7 @@ isKingInAttack(): boolean {
   promotePawn(piece: Piece, type: PieceType): void {
     this.pieces = this.pieces.map((p) => {
       if (!p.position.isSamePosition(piece.position)) return p;
-      const promoted = new Piece(p.position, type, p.team);
+      const promoted = new Piece(p.position, type, p.team, true);
       promoted.possibleMoves = [];
       return promoted;
     });
@@ -113,6 +118,30 @@ playMove(
   destination: Position,
 ): MoveResult {
   if (!enPassantMove && !isValidMove) return MoveResult.INVALID;
+  
+  if(playedPiece.isKing && Math.abs(destination.x - playedPiece.position.x) > 1){
+    
+    const rook = destination.x > playedPiece.position.x ? 
+      this.pieces.find(p => p.isSamePosition(new Position(7,playedPiece.position.y))) : 
+        this.pieces.find(p => p.isSamePosition(new Position(0,playedPiece.position.y)))
+    
+    const direction = destination.x > playedPiece.position.x ? 1 : -1;
+
+    this.pieces.map(p => {
+      if(p.isSamePiecePosition(playedPiece)){
+        p.position = destination;
+        p.hasMoved = true;
+      }
+
+      if(p.isSamePiecePosition(rook!)){
+        p.position.x = destination.x - direction;
+        p.hasMoved = true;
+      }
+      return p;
+      })
+      this.totalTurns++;
+      return MoveResult.CASTLE
+  }
 
   const from = playedPiece.position;
 
@@ -121,7 +150,7 @@ playMove(
 
   this.pieces = this.pieces.reduce((results, p) => {
     if (p.position.isSamePosition(from)) {
-      results.push(new Piece(destination, p.type, p.team));
+      results.push(new Piece(destination, p.type, p.team, true));
     } else if (!p.position.isSamePosition(destination)) {
       results.push(p);
     }
@@ -135,9 +164,8 @@ playMove(
     piece.possibleMoves = this.getValidMove(piece, this.pieces);
   }
 
-  const isCheck = this.isKingInAttack();
 
-  if (isCheck) return MoveResult.CHECK;
+  if (this.isKingInAttack()) return MoveResult.CHECK;
   if (isCapture || enPassantMove) return MoveResult.CAPTURE;
   return MoveResult.MOVE;
 }

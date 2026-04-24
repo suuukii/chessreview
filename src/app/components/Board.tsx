@@ -19,12 +19,26 @@ interface Props {
   playMove: (
     piece: Piece,
     destination: Position,
-    onAnimationStart: (from: Position, translateX: number, translateY: number) => void,
+    onAnimationStart: (
+      animations: {
+        from: Position;
+        translateX: number;
+        translateY: number;
+        variant?: "move" | "castle-king" | "castle-rook";
+      }[],
+    ) => void,
     onPromotionNeeded: (piece: Piece) => void,
     isDragging: boolean,
   ) => boolean;
   promotePawn: (promotionPawn: Piece, pieceType: string) => void;
 }
+
+type PieceAnimation = {
+  from: Position;
+  translateX: number;
+  translateY: number;
+  variant?: "move" | "castle-king" | "castle-rook";
+};
 
 export default function Board({ pieces, playMove, promotePawn }: Props) {
   const [grabPosition, setGrabPosition]           = useState<Position>(new Position(-1, -1));
@@ -32,11 +46,7 @@ export default function Board({ pieces, playMove, promotePawn }: Props) {
   const [promotionPawn, setPromotionPawn]         = useState<Piece | null>(null);
   const [hoverPosition, setHoverPosition]         = useState<Position | null>(null);
   const [lastMove, setLastMove]                   = useState<{ from: Position; to: Position } | null>(null);
-  const [animatingPosition, setAnimatingPosition] = useState<{
-    from: Position;
-    translateX: number;
-    translateY: number;
-  } | null>(null);
+  const [animatingPieces, setAnimatingPieces] = useState<PieceAnimation[]>([]);
   const [boardOffset, setBoardOffset] = useState<{ left: number; top: number }>({ left: 0, top: 0 });
 
   const chessBoardRef    = useRef<HTMLDivElement>(null);
@@ -84,9 +94,9 @@ export default function Board({ pieces, playMove, promotePawn }: Props) {
     );
   }
 
-  function handleAnimationStart(from: Position, translateX: number, translateY: number) {
-    setAnimatingPosition({ from, translateX, translateY });
-    setTimeout(() => setAnimatingPosition(null), 200);
+  function handleAnimationStart(animations: PieceAnimation[]) {
+    setAnimatingPieces(animations);
+    setTimeout(() => setAnimatingPieces([]), 260);
   }
 
   function handlePromotionNeeded(piece: Piece) {
@@ -252,7 +262,8 @@ export default function Board({ pieces, playMove, promotePawn }: Props) {
       const boardPosition = new Position(j, i);
       const piece         = pieces.find((p) => p.position.isSamePosition(boardPosition));
       const hint          = selectedPiece?.possibleMoves?.some((p) => p.isSamePosition(boardPosition)) ?? false;
-      const isAnimating   = animatingPosition?.from.isSamePosition(boardPosition) ?? false;
+      const animation     = animatingPieces.find(({ from }) => from.isSamePosition(boardPosition));
+      const isAnimating   = !!animation;
       const isSelected    = !!selectedPiece && boardPosition.isSamePosition(grabPosition);
 
       board.push(
@@ -261,8 +272,9 @@ export default function Board({ pieces, playMove, promotePawn }: Props) {
           number={j + i + 2}
           image={piece?.image}
           hint={hint}
-          translateX={isAnimating ? animatingPosition!.translateX : 0}
-          translateY={isAnimating ? animatingPosition!.translateY : 0}
+          translateX={isAnimating ? animation!.translateX : 0}
+          translateY={isAnimating ? animation!.translateY : 0}
+          animationVariant={animation?.variant}
           hovered={!!hoverPosition && hoverPosition.isSamePosition(boardPosition)}
           selected={isSelected}
           lastMoveFrom={!!lastMove && boardPosition.isSamePosition(lastMove.from)}

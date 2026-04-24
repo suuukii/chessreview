@@ -80,6 +80,7 @@ export function getPossibleRookMoves(rook:Piece, boardState:Piece[]): Position[]
 
   //left movement
   for (let i: number = 1; i < 8; i++) {
+    if(rook.position.x - i < 0) break;
     const destination = new Position(rook.position.x - i, rook.position.y);
     if(!isTileOccupied(destination, boardState)){
         possibleMoves.push(destination);
@@ -93,6 +94,7 @@ export function getPossibleRookMoves(rook:Piece, boardState:Piece[]): Position[]
     
     //right movement
   for (let i: number = 1; i < 8; i++) {
+    if(rook.position.x + i > 7) break;
     const destination = new Position(rook.position.x + i, rook.position.y);
     if(!isTileOccupied(destination, boardState)){
         possibleMoves.push(destination);

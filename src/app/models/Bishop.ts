@@ -3,7 +3,7 @@ import { Piece } from "./Piece";
 import { Position } from "./Position";
 
 export class Bishop extends Piece{
-    constructor(position:Position, team:TeamType){
-        super(position, PieceType.BISHOP , team)
+    constructor(position:Position, team:TeamType, hasMoved: boolean){
+        super(position, PieceType.BISHOP , team, hasMoved)
     }
 }
