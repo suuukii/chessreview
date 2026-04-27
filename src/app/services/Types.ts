@@ -14,7 +14,9 @@ export enum MoveResult {
   CAPTURE,
   EN_PASSANT,
   PROMOTION,
-  CASTLE
+  CASTLE,
+  CHECKMATE,
+  STALEMATE
 }
 
 export const TeamType = {

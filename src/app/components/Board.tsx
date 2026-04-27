@@ -41,13 +41,13 @@ type PieceAnimation = {
 };
 
 export default function Board({ pieces, playMove, promotePawn }: Props) {
-  const [grabPosition, setGrabPosition]           = useState<Position>(new Position(-1, -1));
-  const [selectedPiece, setSelectedPiece]         = useState<Piece | null>(null);
-  const [promotionPawn, setPromotionPawn]         = useState<Piece | null>(null);
-  const [hoverPosition, setHoverPosition]         = useState<Position | null>(null);
-  const [lastMove, setLastMove]                   = useState<{ from: Position; to: Position } | null>(null);
+  const [grabPosition, setGrabPosition]       = useState<Position>(new Position(-1, -1));
+  const [selectedPiece, setSelectedPiece]     = useState<Piece | null>(null);
+  const [promotionPawn, setPromotionPawn]     = useState<Piece | null>(null);
+  const [hoverPosition, setHoverPosition]     = useState<Position | null>(null);
+  const [lastMove, setLastMove]               = useState<{ from: Position; to: Position } | null>(null);
   const [animatingPieces, setAnimatingPieces] = useState<PieceAnimation[]>([]);
-  const [boardOffset, setBoardOffset] = useState<{ left: number; top: number }>({ left: 0, top: 0 });
+  const [boardOffset, setBoardOffset]         = useState<{ left: number; top: number }>({ left: 0, top: 0 });
 
   const chessBoardRef    = useRef<HTMLDivElement>(null);
   const activePieceRef   = useRef<HTMLElement | null>(null);

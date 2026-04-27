@@ -16,7 +16,7 @@ export default function Referee() {
     b.calculateAllMoves();
     return b;
   });
-  
+
   const boardRef = useRef<Chessboard>(board);
 
   function syncBoard(newBoard: Chessboard) {
@@ -133,6 +133,15 @@ export default function Referee() {
         case MoveResult.EN_PASSANT:
           playSound("capture.mp3");
           break;
+        case MoveResult.CHECKMATE:
+          playSound("move-check.mp3");
+          playSound("game-end.mp3")
+          console.log("checkmate")
+          break;
+        case MoveResult.STALEMATE:
+          playSound(currentPiece.team === TeamType.OUR ? "move-self.mp3" : "move-opponent.mp3");
+          playSound("game-end.mp3")
+          break;
         case MoveResult.CHECK:
           playSound("move-check.mp3")
           break;
@@ -140,9 +149,7 @@ export default function Referee() {
           playSound("castle.mp3")
           break;
         case MoveResult.MOVE:
-          playSound(
-            currentPiece.team === TeamType.OUR ? "move-self.mp3" : "move-opponent.mp3",
-          );
+          playSound(currentPiece.team === TeamType.OUR ? "move-self.mp3" : "move-opponent.mp3");
           break;
       }
 
