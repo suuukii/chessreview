@@ -1,5 +1,6 @@
 "use client";
 
+import "../styles/referee.css"
 import { useState, useRef } from "react";
 import { Piece } from "../models/Piece";
 import { Position } from "../models/Position";
@@ -18,6 +19,27 @@ export default function Referee() {
   });
 
   const boardRef = useRef<Chessboard>(board);
+  
+  //const whitePieces = {b:'n', k:'l', q:'w', r:'t', n:'j'};
+  //const blackPieces = {b:'b', k:'k', q:'q', r:'r', n:'h'};
+
+  const whitePieces: Record<PieceType,string> = {
+    [PieceType.BISHOP]: 'n',
+    [PieceType.KING]: 'l',
+    [PieceType.QUEEN]: 'w',
+    [PieceType.ROOK]: 't',
+    [PieceType.KNIGHT]: 'j',
+    [PieceType.PAWN]: ''
+  }
+
+  const blackPieces: Record<PieceType,string> = {
+    [PieceType.BISHOP]: 'b',
+    [PieceType.KING]: 'k',
+    [PieceType.QUEEN]: 'q',
+    [PieceType.ROOK]: 'r',
+    [PieceType.KNIGHT]: 'h',
+    [PieceType.PAWN]: ''
+  }
 
   function syncBoard(newBoard: Chessboard) {
     boardRef.current = newBoard;
@@ -136,7 +158,6 @@ export default function Referee() {
         case MoveResult.CHECKMATE:
           playSound("move-check.mp3");
           playSound("game-end.mp3")
-          console.log("checkmate")
           break;
         case MoveResult.STALEMATE:
           playSound(currentPiece.team === TeamType.OUR ? "move-self.mp3" : "move-opponent.mp3");
@@ -170,6 +191,7 @@ export default function Referee() {
     return true;
   }
 
+
   function promotePawn(promotionPawn: Piece, pieceType: string): void {
     const typeMap: Record<string, PieceType> = {
       q: PieceType.QUEEN,
@@ -187,13 +209,51 @@ export default function Referee() {
     playSound("promote.mp3");
     syncBoard(newBoard);
   }
-
   return (<>
+  <main>
     <Board
       pieces={board.pieces}
       playMove={playMove}
       promotePawn={promotePawn}
     />
+    
+    <div className="menu">
+      <p>Total Turns: {board.totalTurns - 1}</p>
+      <p>Current Team: {board.currentTeam === TeamType.OPPONENT ? "Black" : "White"}</p>
+        <div className="move-history">
+          {(() => {
+            const moves = board.moves;
+            const moveRows = [];
+            for (let i = 0; i < moves.length; i += 2) {
+              const moveNumber = Math.floor(i / 2) + 1;
+              const whiteMove = moves[i];
+              const blackMove = moves[i + 1];
+              moveRows.push(
+                <p key={moveNumber}>
+                  <span className="move-number">{moveNumber}.</span>
+                  <span className="move-text">
+                    {whiteMove?.notation && (
+                      <span>
+                        <span className="piece-icon">{whiteMove.moveType === MoveResult.CASTLE? '' : whitePieces[whiteMove.piece]}</span>
+                        {whiteMove.notation}
+                      </span>
+                    )}
+                  </span>
+                  {blackMove?.notation && (
+                    <span className="move-text">
+                      <span className="piece-icon">{blackMove.moveType === MoveResult.CASTLE? '' : blackPieces[blackMove.piece]}</span>
+                      {blackMove.notation}
+                    </span>
+                  )}
+                </p>
+              );
+            }
+            return moveRows;
+          })()}
+        </div>
+    </div>
+
+  </main>
   </>
   );
 }

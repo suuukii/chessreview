@@ -3,7 +3,7 @@ import { Metadata } from "next";
 export const metadata: Metadata = {
   title: "ChessReview",
   icons: {
-    icon: "/imgs/icon.png",
+    icon: "/imgs/chessicon.svg"
   },
   alternates: {
     languages: {

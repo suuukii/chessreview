@@ -87,12 +87,13 @@ export default function Board({ pieces, playMove, promotePawn }: Props) {
   }
 
   function getBoardCoords(clientX: number, clientY: number): Position {
-    const chessBoard = chessBoardRef.current!;
-    return new Position(
-      Math.floor((clientX - chessBoard.offsetLeft) / GRID_SIZE),
-      Math.abs(Math.ceil((clientY - chessBoard.offsetTop - 800) / GRID_SIZE)),
-    );
-  }
+  const chessBoard = chessBoardRef.current!;
+  const rect = chessBoard.getBoundingClientRect();
+  return new Position(
+    Math.floor((clientX - rect.left) / GRID_SIZE),
+    Math.abs(Math.ceil((clientY - rect.top - 800) / GRID_SIZE)),
+  );
+}
 
   function handleAnimationStart(animations: PieceAnimation[]) {
     setAnimatingPieces(animations);

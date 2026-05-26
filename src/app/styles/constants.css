@@ -8,6 +8,11 @@
     --hint-tile-color : rgba(0,0,0,.14);
 }
 
+@font-face {
+    font-family: "Chess";
+    src: url(../../../public/fonts/CHEQ_TT.TTF) format("truetype");
+}
+
 
 @media all and (max-width : 450px) {
     :root {
