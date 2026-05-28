@@ -11,7 +11,6 @@ import { MoveResult, PieceType, TeamType } from "../services/Types";
 import { Move } from "./Move";
 import { Piece } from "./Piece";
 import { Position } from "./Position";
-import { SimplifiedPiece } from "./SimplifiedPiece";
 
 export class Chessboard {
   pieces: Piece[];
@@ -19,7 +18,7 @@ export class Chessboard {
   winingTeam?: TeamType;
   draw: boolean;
   moves: Move[];
-  boardHistory: {[key : string] : number};
+  boardHistory: {[key: number] : string }
 
   constructor(pieces: Piece[], totalTurns: number, moves: Move[], boardHistory: {[key : string] : number}) {
     this.pieces =       pieces;
@@ -27,6 +26,10 @@ export class Chessboard {
     this.draw =         false;
     this.moves =        moves;
     this.boardHistory = boardHistory;
+
+    if (Object.keys(this.boardHistory).length === 0) {
+      this.boardHistory[this.getPositionKey()] = 1;
+    }
   }
 
   get currentTeam(): TeamType {
@@ -38,7 +41,7 @@ export class Chessboard {
       this.pieces.map((p) => p.clone()),
       this.totalTurns,
       this.moves.map(m => m.clone()),
-      this.boardHistory
+      { ...this.boardHistory }
     );
   }
 
@@ -186,7 +189,75 @@ export class Chessboard {
   }
 
   drawByRepetition() : boolean {
+    const positionKey = this.getPositionKey();
+
+    if(this.boardHistory[positionKey] === undefined){
+      this.boardHistory[positionKey] = 1;
+    } else {
+      this.boardHistory[positionKey] += 1;
+    }
+
+    if(this.boardHistory[positionKey] === 3){
+      return true;
+    }
     return false;
+  }
+
+  private getPositionKey(): string {
+    const piecesKey = this.pieces
+      .map((piece) => `${piece.team}${piece.type}${piece.position.x}${piece.position.y}`)
+      .sort()
+      .join("|");
+
+    return [
+      piecesKey,
+      this.currentTeam,
+      this.getCastlingRightsKey(),
+      this.getEnPassantKey(),
+    ].join(" ");
+  }
+
+  private getCastlingRightsKey(): string {
+    const castlingRights: string[] = [];
+
+    const canCastle = (
+      team: TeamType,
+      row: number,
+      rookColumn: number,
+      notation: string,
+    ): void => {
+      const king = this.pieces.find((piece) =>
+        piece.team === team &&
+        piece.isKing &&
+        piece.position.isSamePosition(new Position(4, row)) &&
+        !piece.hasMoved
+      );
+      const rook = this.pieces.find((piece) =>
+        piece.team === team &&
+        piece.isRook &&
+        piece.position.isSamePosition(new Position(rookColumn, row)) &&
+        !piece.hasMoved
+      );
+
+      if (king && rook) castlingRights.push(notation);
+    };
+
+    canCastle(TeamType.OUR, 0, 7, "K");
+    canCastle(TeamType.OUR, 0, 0, "Q");
+    canCastle(TeamType.OPPONENT, 7, 7, "k");
+    canCastle(TeamType.OPPONENT, 7, 0, "q");
+
+    return castlingRights.length > 0 ? castlingRights.join("") : "-";
+  }
+
+  private getEnPassantKey(): string {
+    const enPassantPawn = this.pieces.find(
+      (piece) => piece.isPawn && !!(piece as Piece & { enPassant?: boolean }).enPassant,
+    );
+    if (!enPassantPawn) return "-";
+
+    const direction = enPassantPawn.team === TeamType.OUR ? -1 : 1;
+    return `${enPassantPawn.position.x}${enPassantPawn.position.y + direction}`;
   }
 
   isKingInAttack(): boolean {
@@ -460,18 +531,6 @@ export class Chessboard {
 
     this.checkCurrentTeamMoves();
 
-    const simplifiedPieces : SimplifiedPiece[] = this.pieces.map(p => new SimplifiedPiece(p))
-    const simplifiedPiecesJson : string = JSON.stringify(simplifiedPieces)
-
-    if(this.boardHistory[simplifiedPiecesJson] === undefined){
-      this.boardHistory[simplifiedPiecesJson] = 1;
-    } else {
-      this.boardHistory[simplifiedPiecesJson] += 1;
-    }
-
-    if(this.boardHistory[simplifiedPiecesJson] === 3){
-      return MoveResult.DRAW;
-    }
 
     if(this.checkmate()) {
       notation = notation ? notation.replace(/\+?$/, '#') : 'x#';
@@ -486,6 +545,12 @@ export class Chessboard {
     }  
 
     if(this.drawByInsuficientMaterial()){
+      this.moves.push(new Move(playedPiece.team, playedPiece.type, MoveResult.DRAW,
+        playedPiece.position.clone(), destination.clone(), notation))
+      return MoveResult.DRAW;
+    }
+
+    if(this.drawByRepetition()){
       this.moves.push(new Move(playedPiece.team, playedPiece.type, MoveResult.DRAW,
         playedPiece.position.clone(), destination.clone(), notation))
       return MoveResult.DRAW;
