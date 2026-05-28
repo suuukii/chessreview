@@ -26,7 +26,7 @@ export const initialBoard : Chessboard = (() => {
     new Pawn(new Position(6, 6),  TeamType.OPPONENT, false),
     new Pawn(new Position(7, 6),  TeamType.OPPONENT, false),
 
-    // White pawns
+    // // White pawns
     new Pawn(new Position(0, 1),  TeamType.OUR, false),
     new Pawn(new Position(1, 1),  TeamType.OUR, false),
     new Pawn(new Position(2, 1),  TeamType.OUR, false),
@@ -61,7 +61,7 @@ export const initialBoard : Chessboard = (() => {
     // Queens
     new Piece(new Position(3, 0), PieceType.QUEEN,  TeamType.OUR, false),
     new Piece(new Position(3, 7), PieceType.QUEEN,  TeamType.OPPONENT, false),
-  ], 1, []);
+  ], 1, [], {});
   board.calculateAllMoves();
   return board;
 })();

@@ -11,17 +11,22 @@ import { MoveResult, PieceType, TeamType } from "../services/Types";
 import { Move } from "./Move";
 import { Piece } from "./Piece";
 import { Position } from "./Position";
+import { SimplifiedPiece } from "./SimplifiedPiece";
 
 export class Chessboard {
   pieces: Piece[];
   totalTurns: number;
   winingTeam?: TeamType;
+  draw: boolean;
   moves: Move[];
+  boardHistory: {[key : string] : number};
 
-  constructor(pieces: Piece[], totalTurns: number, moves: Move[]) {
-    this.pieces = pieces;
-    this.totalTurns = totalTurns;
-    this.moves = moves;
+  constructor(pieces: Piece[], totalTurns: number, moves: Move[], boardHistory: {[key : string] : number}) {
+    this.pieces =       pieces;
+    this.totalTurns =   totalTurns;
+    this.draw =         false;
+    this.moves =        moves;
+    this.boardHistory = boardHistory;
   }
 
   get currentTeam(): TeamType {
@@ -32,7 +37,8 @@ export class Chessboard {
     return new Chessboard(
       this.pieces.map((p) => p.clone()),
       this.totalTurns,
-      this.moves.map(m => m.clone())
+      this.moves.map(m => m.clone()),
+      this.boardHistory
     );
   }
 
@@ -110,7 +116,11 @@ export class Chessboard {
       } else {
         notation = `${getDisambiguation()}x${dest}`
       }
-    } 
+    }
+
+    
+
+
     return notation + sufix;
   }
 
@@ -121,6 +131,7 @@ export class Chessboard {
 
     //catling move logic
     for (const king of this.pieces.filter((p) => p.isKing)) {
+      if(this.isKingInAttack()) continue;
       if (!king.possibleMoves) continue;
       king.possibleMoves = [
         ...king.possibleMoves,
@@ -129,6 +140,7 @@ export class Chessboard {
     }
 
     this.checkCurrentTeamMoves();
+
 
     //clean moves of the team that is not playing
     for (const piece of this.pieces.filter(
@@ -144,9 +156,36 @@ export class Chessboard {
     return false;
   }
 
-   stalemate(): boolean {
+  stalemate(): boolean {
     if(!this.isKingInAttack() && !this.pieces.filter(p => p.team === this.currentTeam)
       .some(p => p.possibleMoves !== undefined && p.possibleMoves.length > 0)) return true;
+    return false;
+  }
+
+  drawByInsuficientMaterial() : boolean {
+
+    const ourTeamEligibleForDraw = this.pieces.filter(p => p.team === TeamType.OUR).length === 1 ||
+      this.pieces.filter(p => p.team === TeamType.OUR && (p.isKing || p.isKnight || p.isBishop)).length == 2;
+      
+    const opponentTeamEligibleForDraw = this.pieces.filter(p => p.team === TeamType.OPPONENT).length === 1 ||
+      this.pieces.filter(p => p.team === TeamType.OPPONENT && (p.isKing || p.isKnight || p.isBishop)).length == 2 
+
+    if(ourTeamEligibleForDraw && opponentTeamEligibleForDraw) return true; 
+
+    //2 knights
+    if(this.pieces.filter(p => p.team === TeamType.OUR).length === 3 &&
+        this.pieces.filter(p => p.team === TeamType.OUR && p.isKnight).length === 2 &&
+          this.pieces.filter(p => p.team === TeamType.OPPONENT).length === 1) return true;
+
+    if(this.pieces.filter(p => p.team === TeamType.OPPONENT).length === 3 &&
+        this.pieces.filter(p => p.team === TeamType.OPPONENT && p.isKnight).length === 2 &&
+          this.pieces.filter(p => p.team === TeamType.OUR).length === 1) return true;
+
+
+    return false;
+  }
+
+  drawByRepetition() : boolean {
     return false;
   }
 
@@ -229,6 +268,57 @@ export class Chessboard {
       promoted.possibleMoves = [];
       return promoted;
     });
+
+    this.updateLastMovePromotionNotation(type);
+  }
+
+  updateLastMovePromotionNotation(type: PieceType): MoveResult | null {
+    const lastMove = this.moves[this.moves.length - 1];
+    if (!lastMove || lastMove.piece !== PieceType.PAWN || !lastMove.notation) {
+      return null;
+    }
+
+    const promotionNotation: Record<PieceType, string> = {
+      [PieceType.PAWN]: "",
+      [PieceType.BISHOP]: "B",
+      [PieceType.KNIGHT]: "N",
+      [PieceType.ROOK]: "R",
+      [PieceType.KING]: "K",
+      [PieceType.QUEEN]: "Q",
+    };
+
+    const baseNotation = lastMove.notation.replace(/[+#]?$/, "");
+    lastMove.notation = `${baseNotation}=${promotionNotation[type]}`;
+
+    for (const piece of this.pieces) {
+      piece.possibleMoves = this.getValidMove(piece, this.pieces);
+    }
+
+    this.checkCurrentTeamMoves();
+
+    if (this.checkmate()) {
+      lastMove.notation += "#";
+      lastMove.moveType = MoveResult.CHECKMATE;
+      return MoveResult.CHECKMATE;
+    }
+
+    if (this.stalemate()) {
+      lastMove.moveType = MoveResult.STALEMATE;
+      return MoveResult.STALEMATE;
+    }
+
+    if (this.drawByInsuficientMaterial()) {
+      lastMove.moveType = MoveResult.DRAW;
+      return MoveResult.DRAW;
+    }
+
+    if (this.isKingInAttack()) {
+      lastMove.notation += "+";
+      lastMove.moveType = MoveResult.CHECK;
+      return MoveResult.CHECK;
+    }
+
+    return lastMove.moveType;
   }
 
   calculateMoveNotation(move : Move, board : Chessboard): string | null{
@@ -262,11 +352,8 @@ export class Chessboard {
     const otherPiecesInSameCol = ambiguous.filter(p => p.position.x === move.fromPosition.x);
     const otherPiecesInSameRow = ambiguous.filter(p => p.position.y === move.fromPosition.y);
 
-    // Se há peças em colunas diferentes, includos a coluna
     if (otherPiecesInSameCol.length === 0) return cols[move.fromPosition.x];
-    // Se há peças na mesma coluna mas linhas diferentes, incluir a linha
     if (otherPiecesInSameRow.length === 0) return rows[move.fromPosition.y];
-    // Se há peças na mesma coluna E linha, incluir ambos
     return `${cols[move.fromPosition.x]}${rows[move.fromPosition.y]}`;
 
     }
@@ -307,8 +394,7 @@ export class Chessboard {
 
     if (!enPassantMove && !isValidMove) return MoveResult.INVALID;
 
-    // Calcular notação ANTES de fazer o movimento
-    let moveType = MoveResult.MOVE; // provisional
+    let moveType = MoveResult.MOVE;
     const targetPiece = this.pieces.find((p) =>
       p.position.isSamePosition(destination),
     );
@@ -322,7 +408,6 @@ export class Chessboard {
     
     let notation = this.calculateMoveNotationBeforeMove(playedPiece, destination, moveType) || undefined;
 
-    //Castling move
     if (
       playedPiece.isKing &&
       Math.abs(destination.x - playedPiece.position.x) > 1
@@ -375,6 +460,19 @@ export class Chessboard {
 
     this.checkCurrentTeamMoves();
 
+    const simplifiedPieces : SimplifiedPiece[] = this.pieces.map(p => new SimplifiedPiece(p))
+    const simplifiedPiecesJson : string = JSON.stringify(simplifiedPieces)
+
+    if(this.boardHistory[simplifiedPiecesJson] === undefined){
+      this.boardHistory[simplifiedPiecesJson] = 1;
+    } else {
+      this.boardHistory[simplifiedPiecesJson] += 1;
+    }
+
+    if(this.boardHistory[simplifiedPiecesJson] === 3){
+      return MoveResult.DRAW;
+    }
+
     if(this.checkmate()) {
       notation = notation ? notation.replace(/\+?$/, '#') : 'x#';
       this.moves.push(new Move(playedPiece.team, playedPiece.type, MoveResult.CHECKMATE,
@@ -386,6 +484,12 @@ export class Chessboard {
         playedPiece.position.clone(), destination.clone(), notation))
      return MoveResult.STALEMATE;
     }  
+
+    if(this.drawByInsuficientMaterial()){
+      this.moves.push(new Move(playedPiece.team, playedPiece.type, MoveResult.DRAW,
+        playedPiece.position.clone(), destination.clone(), notation))
+      return MoveResult.DRAW;
+    }
 
     if (this.isKingInAttack()){
       notation = notation + '+';

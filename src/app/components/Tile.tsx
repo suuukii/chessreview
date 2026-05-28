@@ -41,7 +41,6 @@ export default function Tile({
     .filter(Boolean)
     .join(" ");
 
-  // Verifica se a peça está em estado de animação
   const isAnimating = translateX !== 0 || translateY !== 0;
 
   return (

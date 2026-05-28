@@ -29,8 +29,9 @@ interface Props {
     ) => void,
     onPromotionNeeded: (piece: Piece) => void,
     isDragging: boolean,
-  ) => boolean;
+  ) => "moved" | "pending-promotion" | false;
   promotePawn: (promotionPawn: Piece, pieceType: string) => void;
+  cancelPromotion: () => void;
 }
 
 type PieceAnimation = {
@@ -40,10 +41,11 @@ type PieceAnimation = {
   variant?: "move" | "castle-king" | "castle-rook";
 };
 
-export default function Board({ pieces, playMove, promotePawn }: Props) {
+export default function Board({ pieces, playMove, promotePawn, cancelPromotion }: Props) {
   const [grabPosition, setGrabPosition]       = useState<Position>(new Position(-1, -1));
   const [selectedPiece, setSelectedPiece]     = useState<Piece | null>(null);
   const [promotionPawn, setPromotionPawn]     = useState<Piece | null>(null);
+  const [promotionMove, setPromotionMove]     = useState<{ from: Position; to: Position } | null>(null);
   const [hoverPosition, setHoverPosition]     = useState<Position | null>(null);
   const [lastMove, setLastMove]               = useState<{ from: Position; to: Position } | null>(null);
   const [animatingPieces, setAnimatingPieces] = useState<PieceAnimation[]>([]);
@@ -107,7 +109,7 @@ export default function Board({ pieces, playMove, promotePawn }: Props) {
   function executeMove(piece: Piece, dest: Position): void {
     const isDragging = !!activePieceRef.current;
 
-    const moved = playMove(
+    const moveResult = playMove(
       piece,
       dest,
       handleAnimationStart,
@@ -115,12 +117,18 @@ export default function Board({ pieces, playMove, promotePawn }: Props) {
       isDragging,
     );
 
-    if (moved) {
+    if (moveResult === "moved") {
       setLastMove({
         from: grabPositionRef.current.clone(),
         to:   dest.clone(),
       });
-    } else {
+    } else if (moveResult === "pending-promotion") {
+      setPromotionMove({
+        from: grabPositionRef.current.clone(),
+        to: dest.clone(),
+      });
+      resetActivePiece();
+    } else if (moveResult === false) {
       resetActivePiece();
     }
 
@@ -244,6 +252,14 @@ export default function Board({ pieces, playMove, promotePawn }: Props) {
   function handlePromote(pieceType: string): void {
     if (!promotionPawn) return;
     promotePawn(promotionPawn, pieceType);
+    if (promotionMove) setLastMove(promotionMove);
+    setPromotionMove(null);
+    setPromotionPawn(null);
+  }
+
+  function handleCancelPromotion(): void {
+    cancelPromotion();
+    setPromotionMove(null);
     setPromotionPawn(null);
   }
 
@@ -299,6 +315,7 @@ export default function Board({ pieces, playMove, promotePawn }: Props) {
         promotionBoxLeft={promotionBoxLeft}
         promotionBoxTop={promotionBoxTop}
         onPromote={handlePromote}
+        onCancel={handleCancelPromotion}
       />
       {board}
     </div>

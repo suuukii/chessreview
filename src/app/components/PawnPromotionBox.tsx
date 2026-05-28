@@ -1,14 +1,15 @@
-import "../styles/pawn-promotion-box.css"
+import "../styles/pawn-promotion-box.css";
 import Image from "next/image";
 import { Piece } from "../models/Piece";
 import { GRID_SIZE } from "../services/Constants";
-import { TeamType } from "../services/Types"
+import { TeamType } from "../services/Types";
 
 interface PawnPromotionBoxProps {
   promotionPawn: Piece | null;
   promotionBoxLeft: number;
   promotionBoxTop: number;
   onPromote: (pieceType: "q" | "r" | "b" | "n") => void;
+  onCancel: () => void;
 }
 
 const options: Array<"b" | "r" | "n" | "q"> = ["b", "r", "n", "q"];
@@ -18,6 +19,7 @@ export default function PawnPromotionBox({
   promotionBoxLeft,
   promotionBoxTop,
   onPromote,
+  onCancel,
 }: PawnPromotionBoxProps) {
   if (!promotionPawn) return null;
 
@@ -29,9 +31,18 @@ export default function PawnPromotionBox({
       style={{
         left: `${promotionBoxLeft}px`,
         top: `${promotionBoxTop}px`,
-        flexDirection: promotionPawn.team === TeamType.OUR ? "column-reverse" : "column",
+        flexDirection:
+          promotionPawn.team === TeamType.OUR ? "column-reverse" : "column",
       }}
     >
+      <button
+        type="button"
+        className="pawn-promotion-cancel"
+        onClick={onCancel}
+        aria-label="Cancelar promoção"
+      >
+        ×
+      </button>
       {options.map((option) => (
         <Image
           key={option}
