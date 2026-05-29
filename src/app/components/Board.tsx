@@ -7,7 +7,6 @@ import { useRef, useState, useEffect } from "react";
 
 import { Piece } from "../models/Piece";
 import { Position } from "@/app/models/Position";
-import { TeamType } from "../services/Types";
 import {
   VERTICAL_AXIS,
   HORIZONTAL_AXIS,
@@ -16,6 +15,12 @@ import {
 
 interface Props {
   pieces: Piece[];
+  flipped: boolean;
+  replayAnimation?: {
+    id: number;
+    animations: PieceAnimation[];
+    lastMove: { from: Position; to: Position };
+  } | null;
   playMove: (
     piece: Piece,
     destination: Position,
@@ -41,7 +46,14 @@ type PieceAnimation = {
   variant?: "move" | "castle-king" | "castle-rook";
 };
 
-export default function Board({ pieces, playMove, promotePawn, cancelPromotion }: Props) {
+export default function Board({
+  pieces,
+  flipped,
+  replayAnimation,
+  playMove,
+  promotePawn,
+  cancelPromotion,
+}: Props) {
   const [grabPosition, setGrabPosition]       = useState<Position>(new Position(-1, -1));
   const [selectedPiece, setSelectedPiece]     = useState<Piece | null>(null);
   const [promotionPawn, setPromotionPawn]     = useState<Piece | null>(null);
@@ -89,13 +101,17 @@ export default function Board({ pieces, playMove, promotePawn, cancelPromotion }
   }
 
   function getBoardCoords(clientX: number, clientY: number): Position {
-  const chessBoard = chessBoardRef.current!;
-  const rect = chessBoard.getBoundingClientRect();
-  return new Position(
-    Math.floor((clientX - rect.left) / GRID_SIZE),
-    Math.abs(Math.ceil((clientY - rect.top - 800) / GRID_SIZE)),
-  );
-}
+    const chessBoard = chessBoardRef.current!;
+    const rect = chessBoard.getBoundingClientRect();
+    const visualX = Math.floor((clientX - rect.left) / GRID_SIZE);
+    const visualY = Math.floor((clientY - rect.top) / GRID_SIZE);
+
+    if (flipped) {
+      return new Position(7 - visualX, visualY);
+    }
+
+    return new Position(visualX, 7 - visualY);
+  }
 
   function handleAnimationStart(animations: PieceAnimation[]) {
     setAnimatingPieces(animations);
@@ -149,6 +165,13 @@ export default function Board({ pieces, playMove, promotePawn, cancelPromotion }
   const clickedPiece = pieces.find((p) => p.position.isSamePosition(pos));
 
   if (!clickedPiece) return;
+
+  if (
+    selectedPieceRef.current &&
+    !selectedPieceRef.current.position.isSamePosition(pos)
+  ) {
+    return;
+  }
 
   updateGrabPosition(pos);
   updateSelectedPiece(clickedPiece);
@@ -263,23 +286,43 @@ export default function Board({ pieces, playMove, promotePawn, cancelPromotion }
     setPromotionPawn(null);
   }
 
+  const promotionVisualX = promotionPawn
+    ? flipped
+      ? 7 - promotionPawn.position.x
+      : promotionPawn.position.x
+    : 0;
+  const promotionVisualY = promotionPawn
+    ? flipped
+      ? promotionPawn.position.y
+      : 7 - promotionPawn.position.y
+    : 0;
   const promotionBoxLeft = promotionPawn
-    ? promotionPawn.position.x * GRID_SIZE + boardOffset.left
+    ? promotionVisualX * GRID_SIZE + boardOffset.left
     : 0;
   const promotionBoxTop = promotionPawn
-  ? promotionPawn.team === TeamType.OUR
-    ? boardOffset.top
-    : boardOffset.top + 7 * GRID_SIZE - 3 * GRID_SIZE
-  : 0;
+    ? boardOffset.top +
+      (promotionVisualY <= 3 ? promotionVisualY : promotionVisualY - 3) *
+        GRID_SIZE
+    : 0;
 
   const board = [];
+  const displayedAnimatingPieces =
+    replayAnimation?.animations ?? animatingPieces;
+  const displayedLastMove = replayAnimation?.lastMove ?? lastMove;
 
-  for (let i = VERTICAL_AXIS.length - 1; i >= 0; i--) {
-    for (let j = 0; j < HORIZONTAL_AXIS.length; j++) {
+  const verticalIndexes = flipped
+    ? VERTICAL_AXIS.map((_, index) => index)
+    : VERTICAL_AXIS.map((_, index) => 7 - index);
+  const horizontalIndexes = flipped
+    ? HORIZONTAL_AXIS.map((_, index) => 7 - index)
+    : HORIZONTAL_AXIS.map((_, index) => index);
+
+  for (const i of verticalIndexes) {
+    for (const j of horizontalIndexes) {
       const boardPosition = new Position(j, i);
       const piece         = pieces.find((p) => p.position.isSamePosition(boardPosition));
       const hint          = selectedPiece?.possibleMoves?.some((p) => p.isSamePosition(boardPosition)) ?? false;
-      const animation     = animatingPieces.find(({ from }) => from.isSamePosition(boardPosition));
+      const animation     = displayedAnimatingPieces.find(({ from }) => from.isSamePosition(boardPosition));
       const isAnimating   = !!animation;
       const isSelected    = !!selectedPiece && boardPosition.isSamePosition(grabPosition);
 
@@ -289,13 +332,13 @@ export default function Board({ pieces, playMove, promotePawn, cancelPromotion }
           number={j + i + 2}
           image={piece?.image}
           hint={hint}
-          translateX={isAnimating ? animation!.translateX : 0}
-          translateY={isAnimating ? animation!.translateY : 0}
+          translateX={isAnimating ? animation!.translateX * (flipped ? -1 : 1) : 0}
+          translateY={isAnimating ? animation!.translateY * (flipped ? -1 : 1) : 0}
           animationVariant={animation?.variant}
           hovered={!!hoverPosition && hoverPosition.isSamePosition(boardPosition)}
           selected={isSelected}
-          lastMoveFrom={!!lastMove && boardPosition.isSamePosition(lastMove.from)}
-          lastMoveTo={!!lastMove && boardPosition.isSamePosition(lastMove.to)}
+          lastMoveFrom={!!displayedLastMove && boardPosition.isSamePosition(displayedLastMove.from)}
+          lastMoveTo={!!displayedLastMove && boardPosition.isSamePosition(displayedLastMove.to)}
         />,
       );
     }

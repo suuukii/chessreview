@@ -8,6 +8,56 @@ main {
     font-size: 14px;
 }
 
+.evaluation-bar {
+    position: relative;
+    width: 48px;
+    height: var(--board-size);
+    background-color: #111;
+    overflow: hidden;
+    flex: 0 0 48px;
+    display: flex;
+    flex-direction: column;
+}
+
+.evaluation-black,
+.evaluation-white {
+    width: 100%;
+    flex: 0 0 auto;
+}
+
+.evaluation-black {
+    background-color: #1a1a1a;
+}
+
+.evaluation-white {
+    background-color: #f2f2f2;
+    transition: height 0.2s ease;
+}
+
+.evaluation-score,
+.evaluation-engine {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1;
+    border-radius: 3px;
+    padding: 0.1rem 0.2rem;
+    background-color: rgba(37, 37, 37, 0.85);
+    color: #fff;
+    font-size: 12px;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.evaluation-score {
+    top: 0.5rem;
+}
+
+.evaluation-engine {
+    bottom: 0.5rem;
+    font-weight: 700;
+}
+
 .menu {
     background-color: #252525;
     width: 320px;
@@ -17,6 +67,70 @@ main {
     overflow: hidden;
     display: flex;
     flex-direction: column;
+}
+
+.menu-controls-inline {
+    display: grid;
+    grid-template-columns: 1fr 64px;
+    gap: 0.5rem;
+    padding: 0.75rem;
+}
+
+.move-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    padding: 0 0.75rem 0.75rem;
+}
+
+.menu-controls-inline .move-controls {
+    padding: 0;
+}
+
+.move-controls button {
+    border: 1px solid #444;
+    border-radius: 4px;
+    background-color: #333;
+    color: #fff;
+    cursor: pointer;
+    font: inherit;
+    font-size: 18px;
+    min-height: 36px;
+}
+
+.move-controls button:hover:not(:disabled) {
+    background-color: #3d3d3d;
+}
+
+.move-controls button:disabled {
+    color: #777;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.flip-board-button {
+    border: 1px solid #444;
+    border-radius: 4px;
+    background-color: #303030;
+    color: #fff;
+    cursor: pointer;
+    font: inherit;
+    font-size: 22px;
+    min-height: 36px;
+    margin: 0 0.75rem 0.75rem;
+}
+
+.menu-controls-inline .flip-board-button {
+    margin: 0;
+}
+
+.flip-board-button:hover {
+    background-color: #3d3d3d;
+}
+
+.flip-board-button[aria-pressed="true"] {
+    border-color: #72bdd4;
+    color: #bcefff;
 }
 
 .menu .move-history {

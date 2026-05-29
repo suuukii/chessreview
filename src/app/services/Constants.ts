@@ -61,7 +61,7 @@ export const initialBoard : Chessboard = (() => {
     // Queens
     new Piece(new Position(3, 0), PieceType.QUEEN,  TeamType.OUR, false),
     new Piece(new Position(3, 7), PieceType.QUEEN,  TeamType.OPPONENT, false),
-  ], 1, [], {});
+  ], 1, [], {}, 0);
   board.calculateAllMoves();
   return board;
 })();

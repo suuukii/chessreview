@@ -20,6 +20,10 @@ export enum MoveResult {
   DRAW,
 }
 
+export enum MoveClassification {
+  BLUNDER,
+}
+
 export const TeamType = {
   OUR:      'w',
   OPPONENT: 'b',

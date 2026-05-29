@@ -8,8 +8,18 @@ import { TeamType, PieceType, MoveResult } from "../services/Types";
 import { initialBoard, playSound, GRID_SIZE } from "../services/Constants";
 import { Chessboard } from "../models/Chessboard";
 import { Pawn } from "../models/Pawn";
+import { Move } from "../models/Move";
 
 import Board from "./Board";
+import EvaluationBar from "./EvaluationBar";
+import Menu from "./Menu";
+
+type PieceAnimation = {
+  from: Position;
+  translateX: number;
+  translateY: number;
+  variant?: "move" | "castle-king" | "castle-rook";
+};
 
 export default function Referee() {
   const [board, setBoard] = useState<Chessboard>(() => {
@@ -19,8 +29,20 @@ export default function Referee() {
   });
 
   const [gameEnded, setGameEnded] = useState<boolean>(false);
+  const [historyIndex, setHistoryIndex] = useState<number>(0);
+  const [historyLength, setHistoryLength] = useState<number>(1);
+  const [isBoardFlipped, setIsBoardFlipped] = useState<boolean>(false);
+  const [replayAnimation, setReplayAnimation] = useState<{
+    id: number;
+    animations: PieceAnimation[];
+    lastMove: { from: Position; to: Position };
+  } | null>(null);
 
   const boardRef = useRef<Chessboard>(board);
+  const boardTimelineRef = useRef<Chessboard[]>([board.clone()]);
+  const historyIndexRef = useRef<number>(0);
+  const replayAnimationIdRef = useRef<number>(0);
+  const navigationInProgressRef = useRef<boolean>(false);
   const pendingPromotionRef = useRef<{
     piece: Piece;
     destination: Position;
@@ -29,27 +51,153 @@ export default function Referee() {
     isCapture: boolean;
   } | null>(null);
 
-  const whitePieces: Record<PieceType, string> = {
-    [PieceType.BISHOP]: "n",
-    [PieceType.KING]: "l",
-    [PieceType.QUEEN]: "w",
-    [PieceType.ROOK]: "t",
-    [PieceType.KNIGHT]: "j",
-    [PieceType.PAWN]: "",
-  };
-
-  const blackPieces: Record<PieceType, string> = {
-    [PieceType.BISHOP]: "b",
-    [PieceType.KING]: "k",
-    [PieceType.QUEEN]: "q",
-    [PieceType.ROOK]: "r",
-    [PieceType.KNIGHT]: "h",
-    [PieceType.PAWN]: "",
-  };
-
   function syncBoard(newBoard: Chessboard) {
     boardRef.current = newBoard;
     setBoard(newBoard);
+  }
+
+  function hasGameEnded(currentBoard: Chessboard): boolean {
+    const lastMove = currentBoard.moves[currentBoard.moves.length - 1];
+    return (
+      lastMove?.moveType === MoveResult.CHECKMATE ||
+      lastMove?.moveType === MoveResult.STALEMATE ||
+      lastMove?.moveType === MoveResult.DRAW
+    );
+  }
+
+  function commitBoard(newBoard: Chessboard): void {
+    const nextIndex = historyIndexRef.current + 1;
+    boardTimelineRef.current = [
+      ...boardTimelineRef.current.slice(0, nextIndex),
+      newBoard.clone(),
+    ];
+    historyIndexRef.current = nextIndex;
+    setHistoryIndex(nextIndex);
+    setHistoryLength(boardTimelineRef.current.length);
+    syncBoard(newBoard);
+  }
+
+  function getMoveAnimation(move: Move, direction: -1 | 1): PieceAnimation[] {
+    const from = direction === 1 ? move.fromPosition : move.toPosition;
+    const to = direction === 1 ? move.toPosition : move.fromPosition;
+    const animations: PieceAnimation[] = [
+      {
+        from: from.clone(),
+        translateX: (to.x - from.x) * GRID_SIZE,
+        translateY: (from.y - to.y) * GRID_SIZE,
+        variant: "move",
+      },
+    ];
+
+    if (move.moveType !== MoveResult.CASTLE) return animations;
+
+    const isKingSideCastle = move.toPosition.x > move.fromPosition.x;
+    const originalRookPosition = new Position(
+      isKingSideCastle ? 7 : 0,
+      move.fromPosition.y,
+    );
+    const castledRookPosition = new Position(
+      move.toPosition.x + (isKingSideCastle ? -1 : 1),
+      move.toPosition.y,
+    );
+    const rookFrom =
+      direction === 1 ? originalRookPosition : castledRookPosition;
+    const rookTo =
+      direction === 1 ? castledRookPosition : originalRookPosition;
+
+    animations[0].variant = "castle-king";
+    animations.push({
+      from: rookFrom,
+      translateX: (rookTo.x - rookFrom.x) * GRID_SIZE,
+      translateY: (rookFrom.y - rookTo.y) * GRID_SIZE,
+      variant: "castle-rook",
+    });
+
+    return animations;
+  }
+
+  function playReplaySound(move: Move, direction: -1 | 1): void {
+    if (
+      direction === -1 &&
+      (
+        move.moveType === MoveResult.CHECK ||
+        move.moveType === MoveResult.CHECKMATE ||
+        move.moveType === MoveResult.STALEMATE ||
+        move.moveType === MoveResult.DRAW
+      )
+    ) {
+      playSound(
+        move.team === TeamType.OUR ? "move-self.mp3" : "move-opponent.mp3",
+      );
+      return;
+    }
+
+    switch (move.moveType) {
+      case MoveResult.CAPTURE:
+      case MoveResult.EN_PASSANT:
+        playSound("capture.mp3");
+        break;
+      case MoveResult.CHECK:
+      case MoveResult.CHECKMATE:
+        playSound("move-check.mp3");
+        break;
+      case MoveResult.CASTLE:
+        playSound("castle.mp3");
+        break;
+      case MoveResult.STALEMATE:
+      case MoveResult.DRAW:
+        playSound("game-end.mp3");
+        break;
+      default:
+        playSound(
+          move.team === TeamType.OUR ? "move-self.mp3" : "move-opponent.mp3",
+        );
+        break;
+    }
+  }
+
+  function navigateMove(direction: -1 | 1): void {
+    if (navigationInProgressRef.current) return;
+
+    const nextIndex = historyIndexRef.current + direction;
+    if (nextIndex < 0 || nextIndex >= boardTimelineRef.current.length) return;
+
+    const nextBoard = boardTimelineRef.current[nextIndex].clone();
+    const currentBoard = boardRef.current;
+    const move =
+      direction === 1
+        ? nextBoard.moves[nextBoard.moves.length - 1]
+        : currentBoard.moves[currentBoard.moves.length - 1];
+
+    if (!move) {
+      historyIndexRef.current = nextIndex;
+      setHistoryIndex(nextIndex);
+      setGameEnded(hasGameEnded(nextBoard));
+      syncBoard(nextBoard);
+      return;
+    }
+
+    pendingPromotionRef.current = null;
+    navigationInProgressRef.current = true;
+    replayAnimationIdRef.current += 1;
+    setReplayAnimation({
+      id: replayAnimationIdRef.current,
+      animations: getMoveAnimation(move, direction),
+      lastMove: {
+        from: move.fromPosition.clone(),
+        to: move.toPosition.clone(),
+      },
+    });
+    playReplaySound(move, direction);
+
+    setTimeout(() => {
+      historyIndexRef.current = nextIndex;
+      setHistoryIndex(nextIndex);
+      setGameEnded(hasGameEnded(nextBoard));
+      syncBoard(nextBoard);
+      setReplayAnimation(null);
+      navigationInProgressRef.current = false;
+    }, 260);
   }
 
   function lockBoard(result: MoveResult): void {
@@ -59,6 +207,12 @@ export default function Referee() {
       result === MoveResult.DRAW
     ) {
       setGameEnded(true);
+    }
+  }
+
+  function clearPossibleMoves(newBoard: Chessboard): void {
+    for (const piece of newBoard.pieces) {
+      piece.possibleMoves = [];
     }
   }
 
@@ -109,6 +263,7 @@ export default function Referee() {
       (p) =>
         p.position.x === desiredPosition.x &&
         p.position.y === desiredPosition.y - pawnDirection &&
+        p.team !== team &&
         (p as Pawn).enPassant,
     );
   }
@@ -127,6 +282,7 @@ export default function Referee() {
     onPromotionNeeded: (piece: Piece) => void,
     isDragging: boolean,
   ): "moved" | "pending-promotion" | false {
+    if (navigationInProgressRef.current) return false;
     if (gameEnded) return false;
     if (piece.team === TeamType.OUR && board.totalTurns % 2 !== 1) return false;
     if (piece.team === TeamType.OPPONENT && board.totalTurns % 2 !== 0)
@@ -304,7 +460,10 @@ export default function Referee() {
         }
 
         newBoard.calculateAllMoves();
-        syncBoard(newBoard);
+        if (hasGameEnded(newBoard)) {
+          clearPossibleMoves(newBoard);
+        }
+        commitBoard(newBoard);
       },
       isDragging ? 0 : 260,
     );
@@ -348,77 +507,49 @@ export default function Referee() {
 
       lockBoard(promotionResult);
       newBoard.calculateAllMoves();
+      if (hasGameEnded(newBoard)) {
+        clearPossibleMoves(newBoard);
+      }
       pendingPromotionRef.current = null;
       playPromotionSound(promotionResult, pendingPromotion.isCapture);
-      syncBoard(newBoard);
+      commitBoard(newBoard);
       return;
     }
 
     newBoard.promotePawn(promotionPawn, selectedType);
     newBoard.calculateAllMoves();
     playSound("promote.mp3");
-    syncBoard(newBoard);
+    commitBoard(newBoard);
   }
 
   function cancelPromotion(): void {
     pendingPromotionRef.current = null;
   }
+
+  const toggleBoard = () => setIsBoardFlipped((flipped) => !flipped);
+
   return (
     <>
       <main>
+        <EvaluationBar fen={board.toFen()} flipped={isBoardFlipped} />
+
         <Board
           pieces={board.pieces}
+          flipped={isBoardFlipped}
+          replayAnimation={replayAnimation}
           playMove={playMove}
           promotePawn={promotePawn}
           cancelPromotion={cancelPromotion}
         />
 
-        <div className="menu">
-          <p>Total Turns: {board.totalTurns - 1}</p>
-          <p>
-            Current Team:{" "}
-            {board.currentTeam === TeamType.OPPONENT ? "Black" : "White"}
-          </p>
-          <div className="move-history">
-            {(() => {
-              const moves = board.moves;
-              const moveRows = [];
-              for (let i = 0; i < moves.length; i += 2) {
-                const moveNumber = Math.floor(i / 2) + 1;
-                const whiteMove = moves[i];
-                const blackMove = moves[i + 1];
-                moveRows.push(
-                  <p key={moveNumber}>
-                    <span className="move-number">{moveNumber}.</span>
-                    <span className="move-text">
-                      {whiteMove?.notation && (
-                        <span>
-                          <span className="piece-icon">
-                            {whiteMove.moveType === MoveResult.CASTLE
-                              ? ""
-                              : whitePieces[whiteMove.piece]}
-                          </span>
-                          {whiteMove.notation}
-                        </span>
-                      )}
-                    </span>
-                    {blackMove?.notation && (
-                      <span className="move-text">
-                        <span className="piece-icon">
-                          {blackMove.moveType === MoveResult.CASTLE
-                            ? ""
-                            : blackPieces[blackMove.piece]}
-                        </span>
-                        {blackMove.notation}
-                      </span>
-                    )}
-                  </p>,
-                );
-              }
-              return moveRows;
-            })()}
-          </div>
-        </div>
+        <Menu
+          board={board}
+          historyIndex={historyIndex}
+          historyLength={historyLength}
+          flipped={isBoardFlipped}
+          onNavigateMove={navigateMove}
+          onToggleBoard={toggleBoard}
+        />
       </main>
     </>
   );

@@ -83,7 +83,7 @@ export function getPossiblePawnMoves(
     possibleMoves.push(upperLeftAttack);
   } else if (!isTileOccupied(upperLeftAttack, boardState)) {
     const leftPiece = boardState.find((p) => p.position.isSamePosition(leftPosition));
-    if (leftPiece?.isPawn && (leftPiece as Pawn).enPassant) {
+    if (leftPiece?.isPawn && leftPiece.team !== pawn.team && (leftPiece as Pawn).enPassant) {
       possibleMoves.push(upperLeftAttack);
     }
   }
@@ -92,7 +92,7 @@ export function getPossiblePawnMoves(
     possibleMoves.push(upperRightAttack);
   } else if (!isTileOccupied(upperRightAttack, boardState)) {
     const rightPiece = boardState.find((p) => p.position.isSamePosition(rightPosition));
-    if (rightPiece?.isPawn && (rightPiece as Pawn).enPassant) {
+    if (rightPiece?.isPawn && rightPiece.team !== pawn.team && (rightPiece as Pawn).enPassant) {
       possibleMoves.push(upperRightAttack);
     }
   }

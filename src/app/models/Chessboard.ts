@@ -9,8 +9,10 @@ import { getPossibleQueenMoves } from "../services/pieces/QueenRules";
 import { getPossibleRookMoves } from "../services/pieces/RookRules";
 import { MoveResult, PieceType, TeamType } from "../services/Types";
 import { Move } from "./Move";
+import { Pawn } from "./Pawn";
 import { Piece } from "./Piece";
 import { Position } from "./Position";
+import { SimplifiedPiece } from "./SimplifiedPiece";
 
 export class Chessboard {
   pieces: Piece[];
@@ -18,18 +20,16 @@ export class Chessboard {
   winingTeam?: TeamType;
   draw: boolean;
   moves: Move[];
-  boardHistory: {[key: number] : string }
+  boardHistory: {[key : string] : number};
+  turnsWithNoCapturesOrPawnMoves : number;
 
-  constructor(pieces: Piece[], totalTurns: number, moves: Move[], boardHistory: {[key : string] : number}) {
-    this.pieces =       pieces;
-    this.totalTurns =   totalTurns;
-    this.draw =         false;
-    this.moves =        moves;
-    this.boardHistory = boardHistory;
-
-    if (Object.keys(this.boardHistory).length === 0) {
-      this.boardHistory[this.getPositionKey()] = 1;
-    }
+  constructor(pieces: Piece[], totalTurns: number, moves: Move[], boardHistory: {[key : string] : number}, turnsWithNoCapturesOrPawnMoves : number) {
+    this.pieces =                         pieces;
+    this.totalTurns =                     totalTurns;
+    this.draw =                           false;
+    this.moves =                          moves;
+    this.boardHistory =                   boardHistory;
+    this.turnsWithNoCapturesOrPawnMoves = turnsWithNoCapturesOrPawnMoves;
   }
 
   get currentTeam(): TeamType {
@@ -41,8 +41,110 @@ export class Chessboard {
       this.pieces.map((p) => p.clone()),
       this.totalTurns,
       this.moves.map(m => m.clone()),
-      { ...this.boardHistory }
+      { ...this.boardHistory },
+      this.turnsWithNoCapturesOrPawnMoves,
     );
+  }
+
+  toFen(): string {
+    const pieceFen: Record<TeamType, Record<PieceType, string>> = {
+      [TeamType.OUR]: {
+        [PieceType.PAWN]: "P",
+        [PieceType.KNIGHT]: "N",
+        [PieceType.BISHOP]: "B",
+        [PieceType.ROOK]: "R",
+        [PieceType.QUEEN]: "Q",
+        [PieceType.KING]: "K",
+      },
+      [TeamType.OPPONENT]: {
+        [PieceType.PAWN]: "p",
+        [PieceType.KNIGHT]: "n",
+        [PieceType.BISHOP]: "b",
+        [PieceType.ROOK]: "r",
+        [PieceType.QUEEN]: "q",
+        [PieceType.KING]: "k",
+      },
+    };
+
+    const rows: string[] = [];
+    for (let y = 7; y >= 0; y--) {
+      let row = "";
+      let empty = 0;
+      for (let x = 0; x < 8; x++) {
+        const piece = this.pieces.find((p) =>
+          p.position.isSamePosition(new Position(x, y)),
+        );
+
+        if (!piece) {
+          empty++;
+          continue;
+        }
+
+        if (empty > 0) {
+          row += empty;
+          empty = 0;
+        }
+        row += pieceFen[piece.team][piece.type];
+      }
+
+      if (empty > 0) row += empty;
+      rows.push(row);
+    }
+
+    return [
+      rows.join("/"),
+      this.currentTeam === TeamType.OUR ? "w" : "b",
+      this.getCastlingRightsFen(),
+      this.getEnPassantTargetFen(),
+      this.turnsWithNoCapturesOrPawnMoves.toString(),
+      Math.floor(this.totalTurns / 2) + 1,
+    ].join(" ");
+  }
+
+  private getCastlingRightsFen(): string {
+    const rights: string[] = [];
+    const canCastle = (
+      team: TeamType,
+      row: number,
+      rookX: number,
+      notation: string,
+    ) => {
+      const king = this.pieces.find((piece) =>
+        piece.team === team &&
+        piece.isKing &&
+        !piece.hasMoved &&
+        piece.position.isSamePosition(new Position(4, row)),
+      );
+      const rook = this.pieces.find((piece) =>
+        piece.team === team &&
+        piece.isRook &&
+        !piece.hasMoved &&
+        piece.position.isSamePosition(new Position(rookX, row)),
+      );
+
+      if (king && rook) rights.push(notation);
+    };
+
+    canCastle(TeamType.OUR, 0, 7, "K");
+    canCastle(TeamType.OUR, 0, 0, "Q");
+    canCastle(TeamType.OPPONENT, 7, 7, "k");
+    canCastle(TeamType.OPPONENT, 7, 0, "q");
+
+    return rights.length > 0 ? rights.join("") : "-";
+  }
+
+  private getEnPassantTargetFen(): string {
+    const cols = ["a", "b", "c", "d", "e", "f", "g", "h"];
+    const pawn = this.pieces.find(
+      (piece) => piece.isPawn && (piece as Pawn).enPassant,
+    );
+
+    if (!pawn) return "-";
+
+    const targetY = pawn.team === TeamType.OUR
+      ? pawn.position.y - 1
+      : pawn.position.y + 1;
+    return `${cols[pawn.position.x]}${targetY + 1}`;
   }
 
   getValidMove(piece: Piece, boardState: Piece[]): Position[] {
@@ -166,98 +268,49 @@ export class Chessboard {
   }
 
   drawByInsuficientMaterial() : boolean {
+    const ourPieces = this.pieces.filter(p => p.team === TeamType.OUR);
+    const opponentPieces = this.pieces.filter(p => p.team === TeamType.OPPONENT);
 
-    const ourTeamEligibleForDraw = this.pieces.filter(p => p.team === TeamType.OUR).length === 1 ||
-      this.pieces.filter(p => p.team === TeamType.OUR && (p.isKing || p.isKnight || p.isBishop)).length == 2;
-      
-    const opponentTeamEligibleForDraw = this.pieces.filter(p => p.team === TeamType.OPPONENT).length === 1 ||
-      this.pieces.filter(p => p.team === TeamType.OPPONENT && (p.isKing || p.isKnight || p.isBishop)).length == 2 
+    const onlyKingOrSingleMinor = (pieces: Piece[]) =>
+      pieces.length === 1 ||
+      (
+        pieces.length === 2 &&
+        pieces.some(p => p.isKing) &&
+        pieces.some(p => p.isKnight || p.isBishop)
+      );
+
+    const ourTeamEligibleForDraw = onlyKingOrSingleMinor(ourPieces);
+    const opponentTeamEligibleForDraw = onlyKingOrSingleMinor(opponentPieces);
 
     if(ourTeamEligibleForDraw && opponentTeamEligibleForDraw) return true; 
 
     //2 knights
-    if(this.pieces.filter(p => p.team === TeamType.OUR).length === 3 &&
-        this.pieces.filter(p => p.team === TeamType.OUR && p.isKnight).length === 2 &&
-          this.pieces.filter(p => p.team === TeamType.OPPONENT).length === 1) return true;
+    if(ourPieces.length === 3 &&
+        ourPieces.filter(p => p.isKnight).length === 2 &&
+          opponentPieces.length === 1) return true;
 
-    if(this.pieces.filter(p => p.team === TeamType.OPPONENT).length === 3 &&
-        this.pieces.filter(p => p.team === TeamType.OPPONENT && p.isKnight).length === 2 &&
-          this.pieces.filter(p => p.team === TeamType.OUR).length === 1) return true;
+    if(opponentPieces.length === 3 &&
+        opponentPieces.filter(p => p.isKnight).length === 2 &&
+          ourPieces.length === 1) return true;
 
 
     return false;
   }
 
   drawByRepetition() : boolean {
-    const positionKey = this.getPositionKey();
+    const simplifiedPieces : SimplifiedPiece[] = this.pieces.map(p => new SimplifiedPiece(p))
+    const simplifiedPiecesJson : string = JSON.stringify(simplifiedPieces)
 
-    if(this.boardHistory[positionKey] === undefined){
-      this.boardHistory[positionKey] = 1;
+    if(this.boardHistory[simplifiedPiecesJson] === undefined){
+      this.boardHistory[simplifiedPiecesJson] = 1;
     } else {
-      this.boardHistory[positionKey] += 1;
+      this.boardHistory[simplifiedPiecesJson] += 1;
     }
 
-    if(this.boardHistory[positionKey] === 3){
+    if(this.boardHistory[simplifiedPiecesJson] === 3){
       return true;
     }
     return false;
-  }
-
-  private getPositionKey(): string {
-    const piecesKey = this.pieces
-      .map((piece) => `${piece.team}${piece.type}${piece.position.x}${piece.position.y}`)
-      .sort()
-      .join("|");
-
-    return [
-      piecesKey,
-      this.currentTeam,
-      this.getCastlingRightsKey(),
-      this.getEnPassantKey(),
-    ].join(" ");
-  }
-
-  private getCastlingRightsKey(): string {
-    const castlingRights: string[] = [];
-
-    const canCastle = (
-      team: TeamType,
-      row: number,
-      rookColumn: number,
-      notation: string,
-    ): void => {
-      const king = this.pieces.find((piece) =>
-        piece.team === team &&
-        piece.isKing &&
-        piece.position.isSamePosition(new Position(4, row)) &&
-        !piece.hasMoved
-      );
-      const rook = this.pieces.find((piece) =>
-        piece.team === team &&
-        piece.isRook &&
-        piece.position.isSamePosition(new Position(rookColumn, row)) &&
-        !piece.hasMoved
-      );
-
-      if (king && rook) castlingRights.push(notation);
-    };
-
-    canCastle(TeamType.OUR, 0, 7, "K");
-    canCastle(TeamType.OUR, 0, 0, "Q");
-    canCastle(TeamType.OPPONENT, 7, 7, "k");
-    canCastle(TeamType.OPPONENT, 7, 0, "q");
-
-    return castlingRights.length > 0 ? castlingRights.join("") : "-";
-  }
-
-  private getEnPassantKey(): string {
-    const enPassantPawn = this.pieces.find(
-      (piece) => piece.isPawn && !!(piece as Piece & { enPassant?: boolean }).enPassant,
-    );
-    if (!enPassantPawn) return "-";
-
-    const direction = enPassantPawn.team === TeamType.OUR ? -1 : 1;
-    return `${enPassantPawn.position.x}${enPassantPawn.position.y + direction}`;
   }
 
   isKingInAttack(): boolean {
@@ -392,6 +445,10 @@ export class Chessboard {
     return lastMove.moveType;
   }
 
+  drawByFiftyMoveRule(): boolean {
+    return this.turnsWithNoCapturesOrPawnMoves >= 100;
+  }
+
   calculateMoveNotation(move : Move, board : Chessboard): string | null{
     if(!move) return null;
     if(move.moveType === MoveResult.INVALID) return null;
@@ -470,7 +527,14 @@ export class Chessboard {
       p.position.isSamePosition(destination),
     );
     const isCapture = !!targetPiece && targetPiece.team !== playedPiece.team;
-    
+
+    // Atualiza a contagem para a regra dos 50 movimentos
+    if (isCapture || playedPiece.isPawn) {
+      this.turnsWithNoCapturesOrPawnMoves = 0;
+    } else {
+      this.turnsWithNoCapturesOrPawnMoves++;
+    }
+
     if (playedPiece.isKing && Math.abs(destination.x - playedPiece.position.x) > 1) {
       moveType = MoveResult.CASTLE;
     } else if (isCapture || enPassantMove) {
@@ -495,6 +559,10 @@ export class Chessboard {
       const direction = destination.x > playedPiece.position.x ? 1 : -1;
 
       this.pieces.map((p) => {
+        if (p.isPawn) {
+          (p as Pawn).enPassant = false;
+        }
+
         if (p.isSamePiecePosition(playedPiece)) {
           p.position = destination;
           p.hasMoved = true;
@@ -513,11 +581,28 @@ export class Chessboard {
     }
 
     const from = playedPiece.position;
+    const pawnDirection = playedPiece.team === TeamType.OUR ? 1 : -1;
+    const enPassantCapturedPosition = new Position(
+      destination.x,
+      destination.y - pawnDirection,
+    );
+    const isDoublePawnMove =
+      playedPiece.isPawn && Math.abs(destination.y - from.y) === 2;
 
     this.pieces = this.pieces.reduce((results, p) => {
       if (p.position.isSamePosition(from)) {
-        results.push(new Piece(destination, p.type, p.team, true));
-      } else if (!p.position.isSamePosition(destination)) {
+        if (p.isPawn) {
+          results.push(new Pawn(destination, p.team, true, isDoublePawnMove));
+        } else {
+          results.push(new Piece(destination, p.type, p.team, true));
+        }
+      } else if (
+        !p.position.isSamePosition(destination) &&
+        !(enPassantMove && p.position.isSamePosition(enPassantCapturedPosition))
+      ) {
+        if (p.isPawn) {
+          (p as Pawn).enPassant = false;
+        }
         results.push(p);
       }
       return results;
@@ -551,6 +636,12 @@ export class Chessboard {
     }
 
     if(this.drawByRepetition()){
+      this.moves.push(new Move(playedPiece.team, playedPiece.type, MoveResult.DRAW,
+        playedPiece.position.clone(), destination.clone(), notation))
+      return MoveResult.DRAW;
+    }
+
+    if(this.drawByFiftyMoveRule()){
       this.moves.push(new Move(playedPiece.team, playedPiece.type, MoveResult.DRAW,
         playedPiece.position.clone(), destination.clone(), notation))
       return MoveResult.DRAW;
