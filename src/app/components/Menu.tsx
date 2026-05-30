@@ -1,7 +1,14 @@
 "use client";
 
+import Image from "next/image";
+
 import { Chessboard } from "../models/Chessboard";
-import { MoveResult, PieceType, TeamType } from "../services/Types";
+import {
+  MoveClassification,
+  MoveResult,
+  PieceType,
+  TeamType,
+} from "../services/Types";
 import MenuControls from "./MenuControls";
 
 interface MenuProps {
@@ -31,6 +38,39 @@ const blackPieces: Record<PieceType, string> = {
   [PieceType.PAWN]: "",
 };
 
+const classificationIcons: Record<MoveClassification, string> = {
+  [MoveClassification.BRILLIANT]: "/svgs/classifications/brilliant.svg",
+  [MoveClassification.GREAT]: "/svgs/classifications/great.svg",
+  [MoveClassification.BEST]: "/svgs/classifications/best.svg",
+  [MoveClassification.BOOK]: "/svgs/classifications/book.svg",
+  [MoveClassification.EXCELLENT]: "/svgs/classifications/excellent.svg",
+  [MoveClassification.GOOD]: "/svgs/classifications/good.svg",
+  [MoveClassification.MISS]: "/svgs/classifications/miss.svg",
+  [MoveClassification.INACCURACY]: "/svgs/classifications/inaccuracy.svg",
+  [MoveClassification.MISTAKE]: "/svgs/classifications/mistake.svg",
+  [MoveClassification.BLUNDER]: "/svgs/classifications/blunder.svg",
+};
+
+const classificationLabels: Record<MoveClassification, string> = {
+  [MoveClassification.BRILLIANT]: "brilliant",
+  [MoveClassification.GREAT]: "great",
+  [MoveClassification.BEST]: "best",
+  [MoveClassification.BOOK]: "book",
+  [MoveClassification.EXCELLENT]: "excellent",
+  [MoveClassification.GOOD]: "good",
+  [MoveClassification.MISS]: "miss",
+  [MoveClassification.INACCURACY]: "inaccuracy",
+  [MoveClassification.MISTAKE]: "mistake",
+  [MoveClassification.BLUNDER]: "blunder",
+};
+
+function getClassificationPhrase(classification: MoveClassification): string {
+  if (classification === MoveClassification.BEST) return "is the best move";
+  if (classification === MoveClassification.BOOK) return "is a book move";
+
+  return `is a ${classificationLabels[classification]}`;
+}
+
 export default function Menu({
   board,
   historyIndex,
@@ -39,6 +79,17 @@ export default function Menu({
   onNavigateMove,
   onToggleBoard,
 }: MenuProps) {
+  const currentOpening = [...board.moves]
+    .reverse()
+    .find((move) => move.openingName);
+  const currentMove = board.moves[board.moves.length - 1];
+  const currentClassification = currentMove?.classification;
+  const showBestMoveText =
+    currentMove?.bestMoveNotation &&
+    currentMove.bestMoveNotation !== currentMove.notation &&
+    currentClassification !== MoveClassification.BEST &&
+    currentClassification !== MoveClassification.BOOK;
+
   return (
     <div className="menu">
       <p>Total Turns: {board.totalTurns - 1}</p>
@@ -46,6 +97,40 @@ export default function Menu({
         Current Team:{" "}
         {board.currentTeam === TeamType.OPPONENT ? "Black" : "White"}
       </p>
+      {currentOpening && (
+        <div className="opening-name">
+          {currentOpening.openingName}
+        </div>
+      )}
+      {currentMove?.notation && currentClassification !== undefined && (
+        <div
+          className={`move-classification-card move-classification-card-${classificationLabels[currentClassification]}`}
+        >
+          <div className="move-classification-headline">
+            <Image
+              src={classificationIcons[currentClassification]}
+              alt=""
+              aria-hidden="true"
+              width={28}
+              height={28}
+            />
+            {currentMove.moveType !== MoveResult.CASTLE && (
+              <span className="piece-icon">
+                {currentMove.team === TeamType.OUR
+                  ? whitePieces[currentMove.piece]
+                  : blackPieces[currentMove.piece]}
+              </span>
+            )}
+            <span>{currentMove.notation}</span>
+            <span>{getClassificationPhrase(currentClassification)}</span>
+          </div>
+          {showBestMoveText && (
+            <div className="move-classification-best">
+              the best move was {currentMove.bestMoveNotation}
+            </div>
+          )}
+        </div>
+      )}
       <div className="move-history">
         {(() => {
           const moves = board.moves;

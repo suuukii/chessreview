@@ -12,6 +12,8 @@ import {
   HORIZONTAL_AXIS,
   GRID_SIZE,
 } from "../services/Constants";
+import { MoveClassification, MoveResult, TeamType } from "../services/Types";
+import { Move } from "../models/Move";
 
 interface Props {
   pieces: Piece[];
@@ -37,6 +39,7 @@ interface Props {
   ) => "moved" | "pending-promotion" | false;
   promotePawn: (promotionPawn: Piece, pieceType: string) => void;
   cancelPromotion: () => void;
+  lastMoveResult?: Move | null;
 }
 
 type PieceAnimation = {
@@ -46,6 +49,19 @@ type PieceAnimation = {
   variant?: "move" | "castle-king" | "castle-rook";
 };
 
+const classificationIcons: Record<MoveClassification, string> = {
+  [MoveClassification.BRILLIANT]: "/svgs/classifications/brilliant.svg",
+  [MoveClassification.GREAT]: "/svgs/classifications/great.svg",
+  [MoveClassification.BEST]: "/svgs/classifications/best.svg",
+  [MoveClassification.BOOK]: "/svgs/classifications/book.svg",
+  [MoveClassification.EXCELLENT]: "/svgs/classifications/excellent.svg",
+  [MoveClassification.GOOD]: "/svgs/classifications/good.svg",
+  [MoveClassification.MISS]: "/svgs/classifications/miss.svg",
+  [MoveClassification.INACCURACY]: "/svgs/classifications/inaccuracy.svg",
+  [MoveClassification.MISTAKE]: "/svgs/classifications/mistake.svg",
+  [MoveClassification.BLUNDER]: "/svgs/classifications/blunder.svg",
+};
+
 export default function Board({
   pieces,
   flipped,
@@ -53,13 +69,12 @@ export default function Board({
   playMove,
   promotePawn,
   cancelPromotion,
+  lastMoveResult,
 }: Props) {
   const [grabPosition, setGrabPosition]       = useState<Position>(new Position(-1, -1));
   const [selectedPiece, setSelectedPiece]     = useState<Piece | null>(null);
   const [promotionPawn, setPromotionPawn]     = useState<Piece | null>(null);
-  const [promotionMove, setPromotionMove]     = useState<{ from: Position; to: Position } | null>(null);
   const [hoverPosition, setHoverPosition]     = useState<Position | null>(null);
-  const [lastMove, setLastMove]               = useState<{ from: Position; to: Position } | null>(null);
   const [animatingPieces, setAnimatingPieces] = useState<PieceAnimation[]>([]);
   const [boardOffset, setBoardOffset]         = useState<{ left: number; top: number }>({ left: 0, top: 0 });
 
@@ -133,16 +148,7 @@ export default function Board({
       isDragging,
     );
 
-    if (moveResult === "moved") {
-      setLastMove({
-        from: grabPositionRef.current.clone(),
-        to:   dest.clone(),
-      });
-    } else if (moveResult === "pending-promotion") {
-      setPromotionMove({
-        from: grabPositionRef.current.clone(),
-        to: dest.clone(),
-      });
+    if (moveResult === "pending-promotion") {
       resetActivePiece();
     } else if (moveResult === false) {
       resetActivePiece();
@@ -275,15 +281,61 @@ export default function Board({
   function handlePromote(pieceType: string): void {
     if (!promotionPawn) return;
     promotePawn(promotionPawn, pieceType);
-    if (promotionMove) setLastMove(promotionMove);
-    setPromotionMove(null);
     setPromotionPawn(null);
   }
 
   function handleCancelPromotion(): void {
     cancelPromotion();
-    setPromotionMove(null);
     setPromotionPawn(null);
+  }
+
+  function getPieceIcon(piece: Piece | undefined): string | undefined {
+    if (!piece || !lastMoveResult) return undefined;
+
+    if (piece.isKing) {
+      if (
+        lastMoveResult.moveType === MoveResult.DRAW ||
+        lastMoveResult.moveType === MoveResult.STALEMATE
+      ) {
+        return piece.team === TeamType.OUR
+          ? "/svgs/piece-icons/draw_white.svg"
+          : "/svgs/piece-icons/draw_black.svg";
+      }
+
+      if (lastMoveResult.moveType === MoveResult.CHECKMATE) {
+        if (piece.team === lastMoveResult.team) {
+          return "/svgs/piece-icons/winner.svg";
+        }
+
+        return piece.team === TeamType.OUR
+          ? "/svgs/piece-icons/checkmate_white.svg"
+          : "/svgs/piece-icons/checkmate_black.svg";
+      }
+    }
+
+    if (
+      lastMoveResult.classification !== undefined &&
+      piece.position.isSamePosition(lastMoveResult.toPosition)
+    ) {
+      return classificationIcons[lastMoveResult.classification];
+    }
+
+    return undefined;
+  }
+
+  function getMoveClassificationForTile(
+    boardPosition: Position,
+  ): MoveClassification | undefined {
+    if (lastMoveResult?.classification === undefined) return undefined;
+
+    if (
+      boardPosition.isSamePosition(lastMoveResult.fromPosition) ||
+      boardPosition.isSamePosition(lastMoveResult.toPosition)
+    ) {
+      return lastMoveResult.classification;
+    }
+
+    return undefined;
   }
 
   const promotionVisualX = promotionPawn
@@ -308,7 +360,10 @@ export default function Board({
   const board = [];
   const displayedAnimatingPieces =
     replayAnimation?.animations ?? animatingPieces;
-  const displayedLastMove = replayAnimation?.lastMove ?? lastMove;
+  const displayedLastMove = replayAnimation?.lastMove
+    ?? (lastMoveResult
+      ? { from: lastMoveResult.fromPosition, to: lastMoveResult.toPosition }
+      : null);
 
   const verticalIndexes = flipped
     ? VERTICAL_AXIS.map((_, index) => index)
@@ -325,6 +380,8 @@ export default function Board({
       const animation     = displayedAnimatingPieces.find(({ from }) => from.isSamePosition(boardPosition));
       const isAnimating   = !!animation;
       const isSelected    = !!selectedPiece && boardPosition.isSamePosition(grabPosition);
+      const pieceIcon     = getPieceIcon(piece);
+      const moveClassification = getMoveClassificationForTile(boardPosition);
 
       board.push(
         <Tile
@@ -339,6 +396,8 @@ export default function Board({
           selected={isSelected}
           lastMoveFrom={!!displayedLastMove && boardPosition.isSamePosition(displayedLastMove.from)}
           lastMoveTo={!!displayedLastMove && boardPosition.isSamePosition(displayedLastMove.to)}
+          pieceIcon={pieceIcon}
+          moveClassification={moveClassification}
         />,
       );
     }

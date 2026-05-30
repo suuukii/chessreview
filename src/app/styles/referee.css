@@ -69,6 +69,100 @@ main {
     flex-direction: column;
 }
 
+.opening-name {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0 0.75rem 0.75rem;
+    padding: 0.5rem 0.65rem;
+    border: 1px solid #3a3a3a;
+    border-radius: 4px;
+    background-color: #1e1e1e;
+    color: #f2f2f2;
+    line-height: 1.25;
+    text-align: left;
+}
+
+.opening-name span {
+    flex: 0 0 auto;
+    color: #72bdd4;
+    font-weight: 700;
+}
+
+.move-classification-card {
+    margin: 0 0.75rem 0.75rem;
+    padding: 0.75rem;
+    border: 1px solid #3a3a3a;
+    border-radius: 4px;
+    background-color: #1e1e1e;
+    text-align: left;
+}
+
+.move-classification-headline {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--move-classification-text);
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.move-classification-headline img {
+    flex: 0 0 auto;
+}
+
+.move-classification-headline .piece-icon {
+    color: var(--move-classification-text);
+}
+
+.move-classification-best {
+    margin-top: 0.45rem;
+    color: #fff;
+    font-size: 13px;
+    line-height: 1.3;
+}
+
+.move-classification-card-brilliant {
+    --move-classification-text: #54cfe3;
+}
+
+.move-classification-card-great {
+    --move-classification-text: #74d379;
+}
+
+.move-classification-card-best {
+    --move-classification-text: #60cc89;
+}
+
+.move-classification-card-book {
+    --move-classification-text: #cca368;
+}
+
+.move-classification-card-excellent {
+    --move-classification-text: #71d391;
+}
+
+.move-classification-card-good {
+    --move-classification-text: #a4d068;
+}
+
+.move-classification-card-miss {
+    --move-classification-text: #c688e5;
+}
+
+.move-classification-card-inaccuracy {
+    --move-classification-text: #ebca54;
+}
+
+.move-classification-card-mistake {
+    --move-classification-text: #ec9148;
+}
+
+.move-classification-card-blunder {
+    --move-classification-text: #f86666;
+}
+
 .menu-controls-inline {
     display: grid;
     grid-template-columns: 1fr 64px;

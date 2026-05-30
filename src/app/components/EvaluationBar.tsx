@@ -11,10 +11,15 @@ interface EvaluationBarProps {
   flipped?: boolean;
 }
 
-function parseStockfishEvaluation(line: string, sideToMove: "w" | "b"): Evaluation | null {
+function parseStockfishEvaluation(
+  line: string,
+  sideToMove: "w" | "b",
+): Evaluation | null {
+  const depthMatch = line.match(/\bdepth (\d+)/);
+  if (!depthMatch || Number(depthMatch[1]) < 10) return null;
+
   const scoreMatch = line.match(/\bscore (cp|mate) (-?\d+)/);
   if (!scoreMatch) return null;
-
 
   const rawValue = Number(scoreMatch[2]);
   const whiteValue = sideToMove === "w" ? rawValue : -rawValue;
@@ -41,7 +46,10 @@ function formatEvaluation(evaluation: Evaluation | null): string {
   return `${pawns > 0 ? "+" : ""}${pawns.toFixed(1)}`;
 }
 
-export default function EvaluationBar({ fen, flipped = false }: EvaluationBarProps) {
+export default function EvaluationBar({
+  fen,
+  flipped = false,
+}: EvaluationBarProps) {
   const [evaluation, setEvaluation] = useState<Evaluation | null>(null);
   const latestFenRef = useRef<string>(fen);
   const workerRef = useRef<Worker | null>(null);
@@ -51,12 +59,20 @@ export default function EvaluationBar({ fen, flipped = false }: EvaluationBarPro
 
   // Initialize worker once
   useEffect(() => {
-    const worker = new Worker(
-      "/stockfish/stockfish-18-lite-single.js",
-    );
+    const worker = new Worker("/stockfish/stockfish-18-lite-single.js");
 
     worker.onmessage = (event: MessageEvent<string>) => {
       const line = event.data;
+
+      const bestMoveMatch = line.match(
+        /^bestmove ([a-h][1-8][a-h][1-8][qrbn]?)/,
+      );
+
+      if (bestMoveMatch) {
+        const bestMove = bestMoveMatch[1]; 
+        console.log("Melhor movimento:", bestMove);
+      }
+
       const latestSideToMove =
         latestFenRef.current.split(" ")[1] === "b" ? "b" : "w";
       const parsedEvaluation = parseStockfishEvaluation(line, latestSideToMove);
@@ -80,7 +96,7 @@ export default function EvaluationBar({ fen, flipped = false }: EvaluationBarPro
   // Update position when FEN changes
   useEffect(() => {
     latestFenRef.current = fen;
-    
+
     if (workerRef.current) {
       workerRef.current.postMessage(`position fen ${fen}`);
       workerRef.current.postMessage("go depth 18");

@@ -39,6 +39,17 @@
   -webkit-user-drag: none;
 }
 
+.tile .chess-piece-status-icon {
+  position: absolute;
+  right: -10px;
+  top: -10px;
+  width: 43px;
+  height: 43px;
+  z-index: 120;
+  pointer-events: none;
+  user-select: none;
+}
+
 .chess-piece-castle-king,
 .chess-piece-castle-rook {
   transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1) !important;
@@ -88,4 +99,53 @@
 
 .tile-last-move-to {
   background-color: rgba(114, 189, 212);
+}
+
+.tile-classification::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-color: var(--move-classification-color);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.tile-classification-brilliant {
+  --move-classification-color: rgba(84, 207, 227, 0.36);
+}
+
+.tile-classification-great {
+  --move-classification-color: rgba(116, 211, 121, 0.34);
+}
+
+.tile-classification-best {
+  --move-classification-color: rgba(96, 204, 137, 0.36);
+}
+
+.tile-classification-book {
+  --move-classification-color: rgba(204, 163, 104, 0.36);
+}
+
+.tile-classification-excellent {
+  --move-classification-color: rgba(113, 211, 145, 0.34);
+}
+
+.tile-classification-good {
+  --move-classification-color: rgba(164, 208, 104, 0.34);
+}
+
+.tile-classification-miss {
+  --move-classification-color: rgba(198, 136, 229, 0.36);
+}
+
+.tile-classification-inaccuracy {
+  --move-classification-color: rgba(235, 202, 84, 0.36);
+}
+
+.tile-classification-mistake {
+  --move-classification-color: rgba(236, 145, 72, 0.38);
+}
+
+.tile-classification-blunder {
+  --move-classification-color: rgba(248, 102, 102, 0.38);
 }

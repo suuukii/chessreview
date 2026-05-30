@@ -4,7 +4,7 @@ import "../styles/referee.css";
 import { useState, useRef } from "react";
 import { Piece } from "../models/Piece";
 import { Position } from "../models/Position";
-import { TeamType, PieceType, MoveResult } from "../services/Types";
+import { MoveClassification, TeamType, PieceType, MoveResult } from "../services/Types";
 import { initialBoard, playSound, GRID_SIZE } from "../services/Constants";
 import { Chessboard } from "../models/Chessboard";
 import { Pawn } from "../models/Pawn";
@@ -20,6 +20,129 @@ type PieceAnimation = {
   translateY: number;
   variant?: "move" | "castle-king" | "castle-rook";
 };
+
+type EngineEvaluation =
+  | { type: "cp"; value: number }
+  | { type: "mate"; value: number };
+
+type EngineAnalysis = {
+  evaluation: EngineEvaluation;
+  bestMove: string;
+};
+
+type LichessOpening = {
+  eco: string;
+  name: string;
+};
+
+type LichessOpeningResponse = {
+  opening?: LichessOpening;
+};
+
+function parseStockfishEvaluation(
+  line: string,
+  sideToMove: "w" | "b",
+): EngineEvaluation | null {
+  const scoreMatch = line.match(/\bscore (cp|mate) (-?\d+)/);
+  if (!scoreMatch) return null;
+
+  const rawValue = Number(scoreMatch[2]);
+  const whiteValue = sideToMove === "w" ? rawValue : -rawValue;
+
+  return {
+    type: scoreMatch[1] as "cp" | "mate",
+    value: whiteValue,
+  };
+}
+
+function getExpectedPointsForWhite(evaluation: EngineEvaluation): number {
+  if (evaluation.type === "mate") return evaluation.value > 0 ? 1 : 0;
+
+  return 1 / (1 + Math.pow(10, -evaluation.value / 400));
+}
+
+function getExpectedPointsForTeam(
+  evaluation: EngineEvaluation,
+  team: TeamType,
+): number {
+  const whiteExpectedPoints = getExpectedPointsForWhite(evaluation);
+  return team === TeamType.OUR
+    ? whiteExpectedPoints
+    : 1 - whiteExpectedPoints;
+}
+
+function classifyExpectedPointsLoss(loss: number): MoveClassification {
+  if (loss <= 0) return MoveClassification.BEST;
+  if (loss <= 0.02) return MoveClassification.EXCELLENT;
+  if (loss <= 0.05) return MoveClassification.GOOD;
+  if (loss <= 0.10) return MoveClassification.INACCURACY;
+  if (loss <= 0.20) return MoveClassification.MISTAKE;
+  return MoveClassification.BLUNDER;
+}
+
+function getPositionFromUciSquare(square: string): Position | null {
+  const cols = "abcdefgh";
+  const x = cols.indexOf(square[0]);
+  const y = Number(square[1]) - 1;
+
+  if (x < 0 || y < 0 || y > 7) return null;
+  return new Position(x, y);
+}
+
+function getPromotionPieceFromUci(move: string): PieceType | null {
+  const promotion = move[4]?.toLowerCase();
+  const promotionMap: Record<string, PieceType> = {
+    q: PieceType.QUEEN,
+    r: PieceType.ROOK,
+    b: PieceType.BISHOP,
+    n: PieceType.KNIGHT,
+  };
+
+  return promotionMap[promotion] ?? null;
+}
+
+function getMoveNotationFromUci(board: Chessboard, uciMove: string): string | null {
+  const from = getPositionFromUciSquare(uciMove.slice(0, 2));
+  const destination = getPositionFromUciSquare(uciMove.slice(2, 4));
+
+  if (!from || !destination) return null;
+
+  const simulatedBoard = board.clone();
+  simulatedBoard.calculateAllMoves();
+
+  const piece = simulatedBoard.pieces.find((p) =>
+    p.position.isSamePosition(from),
+  );
+
+  if (!piece) return null;
+
+  const isValidMove = piece.possibleMoves?.some((move) =>
+    move.isSamePosition(destination),
+  ) ?? false;
+  const isEnPassant =
+    piece.isPawn &&
+    from.x !== destination.x &&
+    !simulatedBoard.pieces.some((p) => p.position.isSamePosition(destination));
+
+  const result = simulatedBoard.playMove(
+    isEnPassant,
+    isValidMove,
+    piece,
+    destination,
+  );
+
+  if (result === MoveResult.INVALID) return null;
+
+  const promotionPiece = getPromotionPieceFromUci(uciMove);
+  if (promotionPiece) {
+    const promotedPawn = simulatedBoard.pieces.find((p) =>
+      p.position.isSamePosition(destination),
+    );
+    if (promotedPawn) simulatedBoard.promotePawn(promotedPawn, promotionPiece);
+  }
+
+  return simulatedBoard.moves[simulatedBoard.moves.length - 1]?.notation ?? null;
+}
 
 export default function Referee() {
   const [board, setBoard] = useState<Chessboard>(() => {
@@ -65,7 +188,7 @@ export default function Referee() {
     );
   }
 
-  function commitBoard(newBoard: Chessboard): void {
+  function commitBoard(newBoard: Chessboard): number {
     const nextIndex = historyIndexRef.current + 1;
     boardTimelineRef.current = [
       ...boardTimelineRef.current.slice(0, nextIndex),
@@ -75,6 +198,166 @@ export default function Referee() {
     setHistoryIndex(nextIndex);
     setHistoryLength(boardTimelineRef.current.length);
     syncBoard(newBoard);
+    return nextIndex;
+  }
+
+  function evaluateFen(fen: string): Promise<EngineAnalysis> {
+    return new Promise((resolve, reject) => {
+      const worker = new Worker("/stockfish/stockfish-18-lite-single.js");
+      const sideToMove = fen.split(" ")[1] === "b" ? "b" : "w";
+      let latestEvaluation: EngineEvaluation | null = null;
+
+      const timeout = window.setTimeout(() => {
+        worker.terminate();
+        reject(new Error("Stockfish evaluation timed out"));
+      }, 8000);
+
+      worker.onmessage = (event: MessageEvent<string>) => {
+        const line = event.data;
+        const parsedEvaluation = parseStockfishEvaluation(line, sideToMove);
+
+        if (parsedEvaluation) {
+          latestEvaluation = parsedEvaluation;
+        }
+
+        if (line.startsWith("bestmove")) {
+          const bestMove = line.match(/^bestmove\s+(\S+)/)?.[1];
+          window.clearTimeout(timeout);
+          worker.postMessage("quit");
+          worker.terminate();
+
+          if (latestEvaluation && bestMove) {
+            resolve({ evaluation: latestEvaluation, bestMove });
+          } else {
+            reject(new Error("Stockfish did not return an evaluation"));
+          }
+        }
+      };
+
+      worker.onerror = (event) => {
+        window.clearTimeout(timeout);
+        worker.terminate();
+        reject(event.error ?? new Error(event.message));
+      };
+
+      worker.postMessage("uci");
+      worker.postMessage("isready");
+      worker.postMessage(`position fen ${fen}`);
+      worker.postMessage("go depth 12");
+    });
+  }
+
+  function applyMoveClassification(
+    timelineIndex: number,
+    moveIndex: number,
+    classification: MoveClassification,
+    bestMoveNotation?: string,
+    opening?: LichessOpening,
+  ): void {
+    const timelineBoard = boardTimelineRef.current[timelineIndex];
+    const timelineMove = timelineBoard?.moves[moveIndex];
+
+    if (!timelineBoard || !timelineMove) return;
+
+    timelineMove.classification = classification;
+    timelineMove.bestMoveNotation = bestMoveNotation;
+    timelineMove.openingName = opening?.name;
+    timelineMove.openingEco = opening?.eco;
+
+    if (historyIndexRef.current === timelineIndex) {
+      syncBoard(timelineBoard.clone());
+    }
+  }
+
+  async function getLichessOpening(fen: string): Promise<LichessOpening | null> {
+    const response = await fetch(
+      `/api/lichess-opening?fen=${encodeURIComponent(fen)}`,
+    );
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = (await response.json()) as LichessOpeningResponse;
+    return data.opening ?? null;
+  }
+
+  async function classifyCommittedMove(
+    timelineIndex: number,
+    moveIndex: number,
+    beforeFen: string,
+    afterFen: string,
+    movingTeam: TeamType,
+  ): Promise<void> {
+    try {
+      const move = boardTimelineRef.current[timelineIndex]?.moves[moveIndex];
+
+      if (move?.moveType === MoveResult.CHECKMATE) {
+        applyMoveClassification(
+          timelineIndex,
+          moveIndex,
+          MoveClassification.BEST,
+          move.notation,
+        );
+        return;
+      }
+
+      if (
+        move?.moveType === MoveResult.STALEMATE ||
+        move?.moveType === MoveResult.DRAW
+      ) {
+        applyMoveClassification(
+          timelineIndex,
+          moveIndex,
+          MoveClassification.GOOD,
+          move.notation,
+        );
+        return;
+      }
+
+      const opening = await getLichessOpening(afterFen);
+
+      if (opening) {
+        applyMoveClassification(
+          timelineIndex,
+          moveIndex,
+          MoveClassification.BOOK,
+          move?.notation,
+          opening,
+        );
+        return;
+      }
+
+      const [beforeAnalysis, afterAnalysis] = await Promise.all([
+        evaluateFen(beforeFen),
+        evaluateFen(afterFen),
+      ]);
+      const beforeBoard = boardTimelineRef.current[timelineIndex - 1];
+      const bestMoveNotation = beforeBoard
+        ? getMoveNotationFromUci(beforeBoard, beforeAnalysis.bestMove)
+        : undefined;
+      const beforeExpectedPoints = getExpectedPointsForTeam(
+        beforeAnalysis.evaluation,
+        movingTeam,
+      );
+      const afterExpectedPoints = getExpectedPointsForTeam(
+        afterAnalysis.evaluation,
+        movingTeam,
+      );
+      const expectedPointsLost = Math.max(
+        0,
+        beforeExpectedPoints - afterExpectedPoints,
+      );
+
+      applyMoveClassification(
+        timelineIndex,
+        moveIndex,
+        classifyExpectedPointsLoss(expectedPointsLost),
+        bestMoveNotation ?? move?.notation,
+      );
+    } catch (error) {
+      console.error("Failed to classify move", error);
+    }
   }
 
   function getMoveAnimation(move: Move, direction: -1 | 1): PieceAnimation[] {
@@ -380,6 +663,7 @@ export default function Referee() {
 
     setTimeout(
       () => {
+        const beforeFen = boardRef.current.toFen();
         const newBoard = boardRef.current.clone();
 
         const result = newBoard.playMove(
@@ -463,7 +747,16 @@ export default function Referee() {
         if (hasGameEnded(newBoard)) {
           clearPossibleMoves(newBoard);
         }
-        commitBoard(newBoard);
+        const afterFen = newBoard.toFen();
+        const moveIndex = newBoard.moves.length - 1;
+        const timelineIndex = commitBoard(newBoard);
+        void classifyCommittedMove(
+          timelineIndex,
+          moveIndex,
+          beforeFen,
+          afterFen,
+          currentPiece.team,
+        );
       },
       isDragging ? 0 : 260,
     );
@@ -483,6 +776,7 @@ export default function Referee() {
     if (selectedType === undefined) return;
 
     const pendingPromotion = pendingPromotionRef.current;
+    const beforeFen = boardRef.current.toFen();
     const newBoard = boardRef.current.clone();
 
     if (pendingPromotion) {
@@ -512,14 +806,32 @@ export default function Referee() {
       }
       pendingPromotionRef.current = null;
       playPromotionSound(promotionResult, pendingPromotion.isCapture);
-      commitBoard(newBoard);
+      const afterFen = newBoard.toFen();
+      const moveIndex = newBoard.moves.length - 1;
+      const timelineIndex = commitBoard(newBoard);
+      void classifyCommittedMove(
+        timelineIndex,
+        moveIndex,
+        beforeFen,
+        afterFen,
+        pendingPromotion.piece.team,
+      );
       return;
     }
 
     newBoard.promotePawn(promotionPawn, selectedType);
     newBoard.calculateAllMoves();
     playSound("promote.mp3");
-    commitBoard(newBoard);
+    const afterFen = newBoard.toFen();
+    const moveIndex = newBoard.moves.length - 1;
+    const timelineIndex = commitBoard(newBoard);
+    void classifyCommittedMove(
+      timelineIndex,
+      moveIndex,
+      beforeFen,
+      afterFen,
+      promotionPawn.team,
+    );
   }
 
   function cancelPromotion(): void {
@@ -537,6 +849,7 @@ export default function Referee() {
           pieces={board.pieces}
           flipped={isBoardFlipped}
           replayAnimation={replayAnimation}
+          lastMoveResult={board.moves[board.moves.length - 1] ?? null}
           playMove={playMove}
           promotePawn={promotePawn}
           cancelPromotion={cancelPromotion}

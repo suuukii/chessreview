@@ -21,7 +21,16 @@ export enum MoveResult {
 }
 
 export enum MoveClassification {
-  BLUNDER,
+  BRILLIANT,
+  GREAT,
+  BEST,
+  BOOK,
+  EXCELLENT,
+  GOOD,
+  MISS,
+  INACCURACY,
+  MISTAKE,
+  BLUNDER
 }
 
 export const TeamType = {
