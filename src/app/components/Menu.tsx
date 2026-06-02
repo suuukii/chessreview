@@ -17,6 +17,7 @@ interface MenuProps {
   historyLength: number;
   flipped: boolean;
   onNavigateMove: (direction: -1 | 1) => void;
+  onNavigateToMove: (index: number) => void;
   onToggleBoard: () => void;
 }
 
@@ -77,6 +78,7 @@ export default function Menu({
   historyLength,
   flipped,
   onNavigateMove,
+  onNavigateToMove,
   onToggleBoard,
 }: MenuProps) {
   const currentOpening = [...board.moves]
@@ -176,6 +178,7 @@ export default function Menu({
         flipped={flipped}
         layout="inline"
         onNavigateMove={onNavigateMove}
+        onNavigateToMove={onNavigateToMove}
         onToggleBoard={onToggleBoard}
       />
     </div>

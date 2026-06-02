@@ -172,7 +172,7 @@ main {
 
 .move-controls {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(4, 1fr);
     gap: 0.5rem;
     padding: 0 0.75rem 0.75rem;
 }

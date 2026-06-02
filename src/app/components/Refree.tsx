@@ -483,6 +483,25 @@ export default function Referee() {
     }, 260);
   }
 
+  function navigateToMove(targetIndex: number): void {
+    if (navigationInProgressRef.current) return;
+
+    const nextIndex = Math.max(
+      0,
+      Math.min(targetIndex, boardTimelineRef.current.length - 1),
+    );
+    if (nextIndex === historyIndexRef.current) return;
+
+    const nextBoard = boardTimelineRef.current[nextIndex].clone();
+    pendingPromotionRef.current = null;
+    replayAnimationIdRef.current += 1;
+    setReplayAnimation(null);
+    historyIndexRef.current = nextIndex;
+    setHistoryIndex(nextIndex);
+    setGameEnded(hasGameEnded(nextBoard));
+    syncBoard(nextBoard);
+  }
+
   function lockBoard(result: MoveResult): void {
     if (
       result === MoveResult.CHECKMATE ||
@@ -861,6 +880,7 @@ export default function Referee() {
           historyLength={historyLength}
           flipped={isBoardFlipped}
           onNavigateMove={navigateMove}
+          onNavigateToMove={navigateToMove}
           onToggleBoard={toggleBoard}
         />
       </main>

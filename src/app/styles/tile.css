@@ -118,34 +118,58 @@
   --move-classification-color: rgba(116, 211, 121, 0.34);
 }
 
-.tile-classification-best {
-  --move-classification-color: rgba(96, 204, 137, 0.36);
+.white-tile.tile-classification-best {
+  --move-classification-color: #AECD9C
+}
+.black-tile.tile-classification-best {
+  --move-classification-color: #7DA880
 }
 
-.tile-classification-book {
-  --move-classification-color: rgba(204, 163, 104, 0.36);
+.white-tile.tile-classification-book {
+  --move-classification-color: #D1BFAF
+}
+.black-tile.tile-classification-book {
+  --move-classification-color: #A8A198
 }
 
-.tile-classification-excellent {
-  --move-classification-color: rgba(113, 211, 145, 0.34);
+.black-tile.tile-classification-excellent {
+  --move-classification-color: #7BA880
+}
+.white-tile.tile-classification-excellent {
+  --move-classification-color: #AACB9B
 }
 
-.tile-classification-good {
-  --move-classification-color: rgba(164, 208, 104, 0.34);
+.black-tile.tile-classification-good {
+  --move-classification-color: #85A893;
+}
+.white-tile.tile-classification-good {
+  --move-classification-color: #B4CCAE;
 }
 
-.tile-classification-miss {
-  --move-classification-color: rgba(198, 136, 229, 0.36);
+.white-tile.tile-classification-miss {
+  --move-classification-color: #EAACA8
+}
+.black-tile.tile-classification-miss {
+  --move-classification-color: #BF8B8E
 }
 
-.tile-classification-inaccuracy {
-  --move-classification-color: rgba(235, 202, 84, 0.36);
+.white-tile.tile-classification-inaccuracy {
+  --move-classification-color: #E7D495
+}
+.black-tile.tile-classification-inaccuracy {
+  --move-classification-color: #B8B179
 }
 
-.tile-classification-mistake {
-  --move-classification-color: rgba(236, 145, 72, 0.38);
+.white-tile.tile-classification-mistake {
+  --move-classification-color: #EDC4A2
+}
+.black-tile.tile-classification-mistake {
+  --move-classification-color: #BB9F86
 }
 
-.tile-classification-blunder {
-  --move-classification-color: rgba(248, 102, 102, 0.38);
+.black-tile.tile-classification-blunder {
+  --move-classification-color: #BB7072
+}
+.white-tile.tile-classification-blunder {
+  --move-classification-color: #E7928A
 }
