@@ -39,3 +39,14 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+#cache
+.cache
+.eslintcache
+next-env.d.ts
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
