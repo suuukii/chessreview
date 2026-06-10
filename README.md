@@ -8,7 +8,7 @@ ChessReview is a platform that helps chess players analyze their games, identify
 
 
 ###
-![App Screenshot](<img width="1469" height="831" alt="Captura de Tela 2026-06-10 às 09 03 16" src="https://github.com/user-attachments/assets/278eab01-e871-4a7b-b5d0-3d4b22e1ed1d" />
+<img width="1469" height="831" alt="Captura de Tela 2026-06-10 às 09 03 16" src="https://github.com/user-attachments/assets/278eab01-e871-4a7b-b5d0-3d4b22e1ed1d" />
 
 
 
