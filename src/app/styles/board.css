@@ -1,6 +1,7 @@
 @import './constants.css';
 
 .board {
+    position: relative;
     display: flex;
     flex-wrap: wrap;
     grid-template-columns: repeat(8, var(--tile-size));
