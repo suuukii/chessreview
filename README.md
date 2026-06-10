@@ -1,5 +1,3 @@
-<img width="1469" height="831" alt="Captura de Tela 2026-06-10 às 09 03 16" src="https://github.com/user-attachments/assets/7cd8ef73-acbd-4211-94aa-8c6c1d989244" />
-
 # ChessReview
 
 ChessReview is a platform that helps chess players analyze their games, identify mistakes, and improve their skills through detailed game reviews.
